@@ -25,7 +25,7 @@ def load_data(settings: Settings | None = None) -> Projects:
 		print(f"[ERROR] the database could not be read ({error})")
 
 		try:
-			path.replace(backup)
+			_ = path.replace(backup)
 			print(f"the unreadable file was kept as {backup}")
 		except OSError:
 			pass
@@ -43,7 +43,7 @@ def save_data(data: Projects, settings: Settings | None = None) -> bool:
 
 	# Don't persist the... "temporary" ID
 	for project in data.values():
-		project.pop("tid", None)
+		_ = project.pop("tid", None)
 
 	if not save_pkl(path, data):
 		print(f"[ERROR] could not write the database at {path}")

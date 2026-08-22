@@ -5,7 +5,7 @@ import shutil
 import subprocess
 
 from pathlib import Path
-from typing import Iterable
+from collections.abc import Iterable
 from datetime import datetime
 from functools import lru_cache
 from dataclasses import dataclass, field
@@ -145,12 +145,12 @@ def _python(root: Path) -> Manifest | None:
 	if pyproject.is_file():
 		data = load_toml(pyproject) or {}
 
-		project = data.get("project") if isinstance(data.get("project"), dict) else {}
-		poetry = (
-			data.get("tool", {}).get("poetry", {})
-			if isinstance(data.get("tool"), dict)
-			else {}
-		)
+		project = data.get("project")
+		tool = data.get("tool")
+		poetry = tool.get("poetry") if isinstance(tool, dict) else None
+
+		if not isinstance(project, dict):
+			project = {}
 
 		if not isinstance(poetry, dict):
 			poetry = {}
@@ -208,7 +208,10 @@ def _rust(root: Path) -> Manifest | None:
 		return None
 
 	data = load_toml(cargo) or {}
-	package = data.get("package") if isinstance(data.get("package"), dict) else {}
+	package = data.get("package")
+
+	if not isinstance(package, dict):
+		package = {}
 
 	return Manifest(
 		language="Rust",

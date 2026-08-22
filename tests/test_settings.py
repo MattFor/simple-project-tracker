@@ -1,5 +1,7 @@
 import tomllib
 
+from pathlib import Path
+
 from tests.helpers import make_settings
 
 from tracker.config.settings import Settings, coerce, parse_setting_value
@@ -32,7 +34,7 @@ def test_override_rejects_the_wrong_type():
 	settings = make_settings()
 
 	try:
-		settings.override("display.list_limit", "abc")
+		_ = settings.override("display.list_limit", "abc")
 	except ValueError:
 		pass
 	else:
@@ -43,7 +45,7 @@ def test_override_rejects_unknown_settings():
 	settings = make_settings()
 
 	try:
-		settings.override("display.nope", 1)
+		_ = settings.override("display.nope", 1)
 	except KeyError:
 		pass
 	else:
@@ -56,7 +58,7 @@ def test_override_limits_choices():
 	assert settings.override("sorting.by", "name")["sorting"]["by"] == "name"
 
 	try:
-		settings.override("sorting.by", "sideways")
+		_ = settings.override("sorting.by", "sideways")
 	except ValueError:
 		pass
 	else:
@@ -73,9 +75,9 @@ def test_parse_setting_value_uses_toml_rules():
 	assert parse_setting_value("plain") == "plain"
 
 
-def test_writer_keeps_comments(tmp_path):
+def test_writer_keeps_comments(tmp_path: Path):
 	path = tmp_path / "settings.toml"
-	path.write_text("[display]\n# keep me\nlist_limit = 20\n")
+	_ = path.write_text("[display]\n# keep me\nlist_limit = 20\n")
 
 	assert write_setting(path, "display.list_limit", 42) is None
 
@@ -85,9 +87,9 @@ def test_writer_keeps_comments(tmp_path):
 	assert tomllib.loads(text)["display"]["list_limit"] == 42
 
 
-def test_writer_adds_missing_keys_and_sections(tmp_path):
+def test_writer_adds_missing_keys_and_sections(tmp_path: Path):
 	path = tmp_path / "settings.toml"
-	path.write_text("[display]\nlist_limit = 20\n")
+	_ = path.write_text("[display]\nlist_limit = 20\n")
 
 	assert write_setting(path, "display.show_notes", False) is None
 	assert write_setting(path, "daemon.interval", 30) is None
@@ -98,9 +100,9 @@ def test_writer_adds_missing_keys_and_sections(tmp_path):
 	assert data["daemon"]["interval"] == 30
 
 
-def test_writer_replaces_multi_line_arrays(tmp_path):
+def test_writer_replaces_multi_line_arrays(tmp_path: Path):
 	path = tmp_path / "settings.toml"
-	path.write_text(
+	_ = path.write_text(
 		'[projects]\nignore = [\n    ".git",\n    "venv"\n]\n\n[output]\ncolour = true\n'
 	)
 

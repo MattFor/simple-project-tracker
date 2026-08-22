@@ -6,6 +6,9 @@ tracker \- simple project tracker by MattFor
 .SH SYNOPSIS
 .B tracker
 .RI "<command> " "[arguments] [options]"
+.br
+.B tracker
+.RI "<project> <command> " "[arguments] [options]"
 
 .SH DESCRIPTION
 .B tracker
@@ -15,6 +18,13 @@ such as a status, a free form note and when the project was last touched.
 Running
 .B tracker
 with no command lists the tracked projects.
+
+Commands that act on a project accept the project either after the command or
+before it, so
+.B "tracker edit 12 status active"
+and
+.B "tracker 12 edit status active"
+are the same.
 
 .SH COMMANDS
 .TP
@@ -56,7 +66,18 @@ Change the
 .B status
 or
 .B note
-of the selected projects.
+of the selected projects. The field names may be shortened to
+.BR s ", " st " for status and " n ", " nt " for note."
+
+.TP
+.BR note ", " n
+Set the note of the selected projects without naming the field, for example
+.BR "tracker note 12 review sunday" .
+
+.TP
+.BR status ", " st
+Set the status of the selected projects without naming the field, for example
+.BR "tracker 12 st blocked" .
 
 .TP
 .BR init ", " i ", " scan
@@ -91,8 +112,18 @@ Permanent global ID.
 .B TID
 Temporary ID from the current sorted view.
 .TP
-.BI # n
+.BI id: n
 Force the permanent ID.
+.TP
+.BI tid: n
+Force the temporary ID.
+.TP
+.BI # n
+Force the permanent ID. Shells treat a bare
+.B #5
+as a comment, so quote it or use
+.B id:5
+instead.
 .TP
 .BI @ n
 Force the temporary ID.
@@ -146,12 +177,23 @@ Do not ask for confirmation.
 Force colour off or on.
 
 .SH CONFIGURATION
-Tracker normally loads
-.I settings.toml
-from the project directory. If
+Tracker loads
+.I ~/.config/tracker/settings.toml
+and falls back to the defaults shipped with the package.
+.B "tracker settings edit"
+and
+.B "tracker settings set"
+create that file from the shipped copy the first time they are used; nothing is
+ever written inside the installation prefix.
+
+Run from a source checkout it loads
 .I my_settings.toml
-exists, it is used instead. Any setting left out of your file falls back to the
-built in default, so a partial configuration file is fine.
+and then
+.I settings.toml
+from the checkout instead, and keeps the database there too.
+
+Any setting left out of your file falls back to the built in default, so a
+partial configuration file is fine.
 
 Settings can be overridden for a single command:
 .PP
@@ -187,6 +229,9 @@ Use a different settings file.
 .B TRACKER_DATA
 Use a different database file.
 .TP
+.B TRACKER_SHARE
+Look for the shipped help text and default settings in this directory.
+.TP
 .B NO_COLOR
 Disable colour.
 
@@ -200,6 +245,8 @@ tracker list -m:archived
 tracker add ~/Programming/Projects active "work in progress"
 tracker check tracker
 tracker edit 3-7 status completed
+tracker id:12 note review sunday
+tracker tracker st current
 tracker remove tracker
 tracker init ~/Programming
 tracker stats
@@ -209,15 +256,11 @@ tracker daemon status
 
 .SH FILES
 .TP
-.I settings.toml
-Default configuration.
+.I ~/.config/tracker/settings.toml
+Your configuration.
 
 .TP
-.I my_settings.toml
-Your own configuration.
-
-.TP
-.I data.pkl
+.I ~/.local/share/tracker/data.pkl
 Project database.
 
 .TP

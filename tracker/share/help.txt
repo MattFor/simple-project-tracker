@@ -2,8 +2,10 @@
 
 {BOLD}Usage:{RESET}
    {GREEN}tracker <command> [arguments] [options]{RESET}
+   {GREEN}tracker <project> <command> [arguments] [options]{RESET}
 
-   {GRAY}No arguments prints listed proejcts.{RESET}
+   {GRAY}No arguments prints the tracked projects.{RESET}
+   {GRAY}Commands that work on a project accept it before or after the command.{RESET}
 
 {BOLD}Commands:{RESET}
    {YELLOW}help{RESET}, {GRAY}h, -h, --help{RESET}
@@ -72,13 +74,40 @@
       {GRAY}Usage:{RESET}
          {GREEN}tracker edit <selection> status <value>{RESET}
          {GREEN}tracker edit <selection> note <value...>{RESET}
+         {GREEN}tracker <selection> edit status <value>{RESET}
+
+      {GRAY}status may be shortened to s or st, note to n or nt.{RESET}
 
       {GRAY}Examples:{RESET}
          {GREEN}tracker edit 12 status active{RESET}
          {GREEN}tracker edit 3-7 status completed{RESET}
          {GREEN}tracker edit 5+3 note "needs documentation"{RESET}
          {GREEN}tracker edit tracker status maintenance{RESET}
+         {GREEN}tracker edit id:12 n review sunday{RESET}
          {GREEN}tracker edit all status active{RESET}
+
+   {YELLOW}note{RESET}, {GRAY}n{RESET}
+      Set a project's note without naming the field.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}tracker note <selection> <value...>{RESET}
+         {GREEN}tracker <selection> note <value...>{RESET}
+
+      {GRAY}Examples:{RESET}
+         {GREEN}tracker note 12 review sunday{RESET}
+         {GREEN}tracker id:12 n review sunday{RESET}
+         {GREEN}tracker tracker n ""{RESET}                {GRAY}clear it{RESET}
+
+   {YELLOW}status{RESET}, {GRAY}st{RESET}
+      Set a project's status without naming the field.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}tracker status <selection> <value>{RESET}
+         {GREEN}tracker <selection> status <value>{RESET}
+
+      {GRAY}Examples:{RESET}
+         {GREEN}tracker status 12 blocked{RESET}
+         {GREEN}tracker tracker st current{RESET}
 
    {YELLOW}init{RESET}, {GRAY}i, scan{RESET}
       Scan a directory and add whatever it finds. Existing entries keep their ID, status and note, only the timestamp is refreshed.
@@ -132,7 +161,9 @@
    {GRAY}Projects can be identified by:{RESET}
    {GREEN}ID{RESET}             Permanent global ID
    {GREEN}TID{RESET}            Temporary ID from the current sorted view
-   {GREEN}#n{RESET}             Force the permanent ID
+   {GREEN}id:n{RESET}           Force the permanent ID
+   {GREEN}tid:n{RESET}          Force the temporary ID
+   {GREEN}#n{RESET}             Force the permanent ID {GRAY}(quote it, the shell reads # as a comment){RESET}
    {GREEN}@n{RESET}             Force the temporary ID
    {GREEN}n-x{RESET}            Inclusive range, in either direction
    {GREEN}n+x{RESET}            n and the next x projects
@@ -173,9 +204,14 @@
       is not a terminal, or when NO_COLOR is set.
 
 {BOLD}Configuration:{RESET}
-   {GRAY}Tracker loads settings.toml by default.{RESET}
-   {GRAY}If my_settings.toml exists, it is used instead.{RESET}
-   {GRAY}Anything missing from your file falls back to the built in default.{RESET}
+   {GRAY}By default ~/.config/tracker/settings.toml is used.{RESET}
+   {GRAY}A custom config my_settings.toml is used when present.{RESET}
+   {GRAY}Any missing entries will be replaced with the default configuration.{RESET}
+
+   {GRAY}Files:{RESET}
+      {GREEN}~/.config/tracker/settings.toml{RESET}      configuration
+      {GREEN}~/.local/share/tracker/data.pkl{RESET}      database
+      {GREEN}~/.local/state/tracker/{RESET}              daemon pid and log
 
    {GRAY}Settings can be overridden for a single command:{RESET}
       {GREEN}tracker list display.list_limit=20{RESET}
@@ -184,6 +220,7 @@
    {GRAY}Environment:{RESET}
       {GREEN}TRACKER_SETTINGS{RESET}   use a different settings file
       {GREEN}TRACKER_DATA{RESET}       use a different database file
+      {GREEN}TRACKER_SHARE{RESET}      use a different directory for the shipped files
       {GREEN}NO_COLOR{RESET}           disable colour
 
 {BOLD}Examples:{RESET}
@@ -193,6 +230,8 @@
    {GREEN}tracker add ~/Programming/Projects active "work in progress"{RESET}
    {GREEN}tracker check tracker{RESET}
    {GREEN}tracker edit 3-7 status completed{RESET}
+   {GREEN}tracker id:12 note review sunday{RESET}
+   {GREEN}tracker tracker st current{RESET}
    {GREEN}tracker remove tracker{RESET}
    {GREEN}tracker init ~/Programming{RESET}
    {GREEN}tracker stats{RESET}

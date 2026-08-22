@@ -6,6 +6,7 @@ from typing import Any
 from pathlib import Path
 from dataclasses import dataclass, field
 
+from tracker.config import paths
 from tracker.config.defaults import SECTION_TITLES, defaults
 from tracker.config.settings import Settings, parse_setting_value
 from tracker.config.writer import write_setting
@@ -46,6 +47,15 @@ class Context:
 		return temporary_ids(self.data, self.settings)
 
 
+def missing_project(command: str) -> int:
+	print(f"[ERROR] {command} requires a project")
+	hint = "a bare #5 is a comment to the shell, write id:5 or quote it as '#5'"
+
+	print(f"{C.GRAY}        {hint}{C.RESET}")
+
+	return 1
+
+
 def confirm(context: Context, question: str) -> bool:
 	if context.assume_yes:
 		return True
@@ -71,7 +81,9 @@ def confirm(context: Context, question: str) -> bool:
 #
 
 
-def command_version(context: Context) -> int:
+def command_version(context: Context, args: list[str]) -> int:
+	del args
+
 	print(f"{metadata.name.capitalize()} v{metadata.version} by {metadata.author}")
 
 	if context.verbose:
@@ -82,7 +94,9 @@ def command_version(context: Context) -> int:
 	return 0
 
 
-def command_help() -> int:
+def command_help(context: Context, args: list[str]) -> int:
+	del context, args
+
 	print_help(metadata)
 	return 0
 
@@ -151,8 +165,7 @@ def command_list(context: Context, args: list[str]) -> int:
 
 def command_check(context: Context, args: list[str]) -> int:
 	if not args:
-		print("[ERROR] check requires a project")
-		return 1
+		return missing_project("check")
 
 	selected = select_projects(context.data, context.settings, args)
 
@@ -194,8 +207,7 @@ def command_show(context: Context, args: list[str]) -> int:
 
 def command_path(context: Context, args: list[str]) -> int:
 	if not args:
-		print("[ERROR] path requires a project")
-		return 1
+		return missing_project("path")
 
 	selected = select_projects(context.data, context.settings, args)
 
@@ -208,7 +220,9 @@ def command_path(context: Context, args: list[str]) -> int:
 	return 0
 
 
-def command_stats(context: Context) -> int:
+def command_stats(context: Context, args: list[str]) -> int:
+	del args
+
 	data = context.data
 
 	if not data:
@@ -332,7 +346,7 @@ def command_add(context: Context, args: list[str]) -> int:
 
 	known = set(data)
 
-	find_projects(str(path), settings, data)
+	_ = find_projects(str(path), settings, data)
 
 	added = [project_path for project_path in data if project_path not in known]
 
@@ -382,7 +396,7 @@ def command_init(context: Context, args: list[str]) -> int:
 
 	started = time.monotonic()
 
-	find_projects(str(path), settings, context.data)
+	_ = find_projects(str(path), settings, context.data)
 
 	added = [project_path for project_path in context.data if project_path not in known]
 	updated = len(context.data) - len(known) - len(added)
@@ -393,7 +407,7 @@ def command_init(context: Context, args: list[str]) -> int:
 		print(f"no new projects found ({len(context.data)} tracked)")
 
 		if context.data:
-			context.save()
+			_ = context.save()
 
 		return 0
 
@@ -428,8 +442,7 @@ def command_init(context: Context, args: list[str]) -> int:
 
 def command_remove(context: Context, args: list[str]) -> int:
 	if not args:
-		print("[ERROR] remove requires a project")
-		return 1
+		return missing_project("remove")
 
 	settings = context.settings
 	data = context.data
@@ -483,13 +496,23 @@ def command_remove(context: Context, args: list[str]) -> int:
 	return 0
 
 
-_EDIT_FIELDS = ("status", "note")
+EDIT_FIELDS = ("status", "note")
+
+FIELD_ALIASES = {
+	"status": "status",
+	"stat": "status",
+	"st": "status",
+	"s": "status",
+	"note": "note",
+	"notes": "note",
+	"nt": "note",
+	"n": "note",
+}
 
 
 def command_edit(context: Context, args: list[str]) -> int:
 	if not args:
-		print("[ERROR] edit requires a project")
-		return 1
+		return missing_project("edit")
 
 	settings = context.settings
 
@@ -503,11 +526,11 @@ def command_edit(context: Context, args: list[str]) -> int:
 	index = 1
 
 	while index < len(args):
-		field_name = args[index].lower()
+		field_name = FIELD_ALIASES.get(args[index].lower().strip("-"), "")
 
-		if field_name not in _EDIT_FIELDS:
+		if not field_name:
 			print(
-				f"[ERROR] unknown field '{args[index]}', expected one of: {', '.join(_EDIT_FIELDS)}"
+				f"[ERROR] unknown field '{args[index]}', expected one of: {', '.join(EDIT_FIELDS)}"
 			)
 			return 1
 
@@ -563,6 +586,25 @@ def command_edit(context: Context, args: list[str]) -> int:
 	return 0
 
 
+def edit_field(context: Context, args: list[str], field_name: str) -> int:
+	if not args:
+		return missing_project(field_name)
+
+	if len(args) < 2:
+		print(f"[ERROR] {field_name} requires a value")
+		return 1
+
+	return command_edit(context, [args[0], field_name, " ".join(args[1:])])
+
+
+def command_note(context: Context, args: list[str]) -> int:
+	return edit_field(context, args, "note")
+
+
+def command_status(context: Context, args: list[str]) -> int:
+	return edit_field(context, args, "status")
+
+
 #
 # Settings
 #
@@ -576,6 +618,11 @@ def _display_settings(context: Context) -> None:
 	print(f"{C.GRAY}{'-' * 70}{C.RESET}")
 	print(f"{C.GRAY}source: {settings.path}{C.RESET}")
 
+	if settings.path == paths.bundled_file(paths.SETTINGS_NAME):
+		notice = f"these are the shipped defaults, `settings edit` copies them to {paths.user_settings_file()}"
+
+		print(f"{C.GRAY}{notice}{C.RESET}")
+
 	for section, title in SECTION_TITLES.items():
 		data = settings.raw.get(section)
 
@@ -584,17 +631,21 @@ def _display_settings(context: Context) -> None:
 
 		print(f"\n{C.BOLD}{title}{C.RESET}")
 
-		for key, value in data.items():
+		section_values: dict[str, Any] = data
+		section_defaults: dict[str, Any] = reference.get(section, {})
+
+		for key, value in section_values.items():
 			label = key.replace("_", " ").title()
 
 			if isinstance(value, list):
-				shown = ", ".join(str(item) for item in value) or "-"
+				entries: list[Any] = value
+				shown = ", ".join(str(item) for item in entries) or "-"
 			elif isinstance(value, dict):
 				shown = f"{len(value)} entries"
 			else:
 				shown = str(value)
 
-			changed = reference.get(section, {}).get(key, object()) != value
+			changed = section_defaults.get(key, object()) != value
 			marker = f" {C.GRAY}(changed){C.RESET}" if changed else ""
 
 			print(f"  {label:<22} {C.YELLOW}{shown}{C.RESET}{marker}")
@@ -643,6 +694,7 @@ def command_settings(context: Context, args: list[str]) -> int:
 
 		key = args[1]
 		raw = " ".join(args[2:])
+		target = paths.editable_settings_file()
 
 		try:
 			updated = settings.override(key, parse_setting_value(raw))
@@ -655,14 +707,14 @@ def command_settings(context: Context, args: list[str]) -> int:
 
 		value = updated.get(key)
 
-		error = write_setting(settings.path, key, value)
+		error = write_setting(target, key, value)
 
 		if error:
 			print(f"[ERROR] {error}")
 			return 1
 
 		print(f"{key} = {value}")
-		print(f"{C.GRAY}saved to {settings.path}{C.RESET}")
+		print(f"{C.GRAY}saved to {target}{C.RESET}")
 
 		return 0
 
@@ -698,7 +750,7 @@ def command_daemon(context: Context, args: list[str]) -> int:
 		return daemon.run(context.settings)
 
 	if action in ("restart", "r"):
-		daemon.stop()
+		_ = daemon.stop()
 		return daemon.start(context.settings)
 
 	if action in ("start", "s"):

@@ -109,7 +109,7 @@ def print_details(
 			if info.clean:
 				_field("Working tree", "clean", "green")
 			else:
-				parts = []
+				parts: list[str] = []
 
 				if info.staged:
 					parts.append(f"{info.staged} staged")

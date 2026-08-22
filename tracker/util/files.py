@@ -21,7 +21,7 @@ def atomic_write(path: Path, payload: bytes) -> bool:
 		temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
 
 		with open(temporary, "wb") as f:
-			f.write(payload)
+			_ = f.write(payload)
 			f.flush()
 			os.fsync(f.fileno())
 
@@ -56,11 +56,16 @@ def save_json(path: Path, data: dict[str, Any]) -> bool:
 def load_json(path: Path) -> dict[str, Any] | None:
 	try:
 		with open(path, "r", encoding="utf-8") as f:
-			data = json.load(f)
+			data: Any = json.load(f)
 	except (OSError, UnicodeDecodeError, json.JSONDecodeError):
 		return None
 
-	return data if isinstance(data, dict) else None
+	if not isinstance(data, dict):
+		return None
+
+	loaded: dict[str, Any] = data
+
+	return loaded
 
 
 #

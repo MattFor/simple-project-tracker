@@ -4,7 +4,8 @@ import tomllib
 import subprocess
 
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
+from collections.abc import Iterator
 
 from tracker.config import paths
 from tracker.util.files import read_toml
@@ -44,14 +45,13 @@ class Settings:
 		path: Path | None = None,
 		problems: list[str] | None = None,
 	) -> None:
+		self._data: dict[str, Any] = {}
+		self._path: Path = path or paths.settings_file()
 		self._problems: list[str] = list(problems or [])
 
 		if data is not None:
 			self._data = data
-			self._path = path or paths.settings_file()
 			return
-
-		self._path = path or paths.settings_file()
 
 		loaded, error = read_toml(self._path)
 
@@ -165,15 +165,17 @@ class Settings:
 		return Settings(data, path=self._path, problems=self._problems)
 
 	def edit(self) -> None:
+		target = paths.editable_settings_file()
+
 		editor = os.environ.get("EDITOR") or os.environ.get("VISUAL")
 
-		command = [editor, str(self.path)] if editor else ["xdg-open", str(self.path)]
+		command = [editor, str(target)] if editor else ["xdg-open", str(target)]
 
 		try:
-			subprocess.run(command, check=False)
+			_ = subprocess.run(command, check=False)
 		except (OSError, subprocess.SubprocessError) as error:
 			print(f"[ERROR] could not open an editor: {error}")
-			print(f"the settings file is at {self.path}")
+			print(f"the settings file is at {target}")
 
 
 #

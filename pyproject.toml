@@ -8,30 +8,42 @@ version = "1.0.0"
 description = "Simple project tracker"
 readme = "README.md"
 requires-python = ">=3.11"
+keywords = ["cli", "projects", "git", "tracker"]
 
 authors = [
     { name = "MattFor", email = "mattfor@relaxy.xyz" }
 ]
 
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
+    "Topic :: Utilities",
 ]
 
 dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/MattFor/tracker"
+Source = "https://github.com/MattFor/tracker"
+Mirror = "https://codeberg.org/MattFor/tracker"
+Issues = "https://github.com/MattFor/tracker/issues"
 
 [project.scripts]
 tracker = "tracker.cli.app:main"
+t = "tracker.cli.app:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["tracker*"]
+
+[tool.setuptools.package-data]
+tracker = ["share/*.toml", "share/*.txt"]
 
 [dependency-groups]
 dev = [
@@ -64,3 +76,10 @@ include = ["tracker", "tests", "main.py"]
 
 reportPrivateUsage = false # We'll deal with this later methinks
 reportImportCycles = false
+
+reportAny = false
+reportExplicitAny = false
+reportUnknownVariableType = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownParameterType = false

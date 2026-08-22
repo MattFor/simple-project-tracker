@@ -33,6 +33,10 @@ COMMANDS: dict[str, str] = {
 	"info": "check",
 	"edit": "edit",
 	"e": "edit",
+	"note": "note",
+	"n": "note",
+	"status": "status",
+	"st": "status",
 	"init": "init",
 	"i": "init",
 	"scan": "init",
@@ -69,9 +73,37 @@ HANDLERS: dict[str, Handler] = {
 	"path": commands.command_path,
 	"stats": commands.command_stats,
 	"show": commands.command_show,
+	"note": commands.command_note,
+	"status": commands.command_status,
 }
 
-GREEDY = frozenset({"add", "edit"})
+GREEDY = frozenset({"add", "edit", "note", "status"})
+
+SUBJECT = frozenset({"check", "edit", "note", "path", "remove", "show", "status"})
+
+ACTIONS: dict[str, frozenset[str]] = {
+	"settings": frozenset({"edit", "e", "path", "p", "where", "get", "g", "set", "s"}),
+	"daemon": frozenset(
+		{
+			"start",
+			"s",
+			"stop",
+			"kill",
+			"k",
+			"restart",
+			"r",
+			"status",
+			"st",
+			"state",
+			"log",
+			"logs",
+			"l",
+			"run",
+			"foreground",
+			"fg",
+		}
+	),
+}
 
 VERBOSE_FLAGS = frozenset({"verbose", "vv"})
 YES_FLAGS = frozenset({"yes", "y", "force", "f"})
@@ -94,17 +126,30 @@ def split(args: list[str]) -> list[tuple[str, list[str]]]:
 
 	while index < len(args):
 		name = command_of(args[index])
+		subject: list[str] = []
 
 		if name is None:
-			name = "show"
-		else:
-			index += 1
+			while index < len(args) and command_of(args[index]) is None:
+				subject.append(args[index])
+				index += 1
+
+			name = command_of(args[index]) if index < len(args) else None
+
+			if name is None or name not in SUBJECT:
+				segments.append(("show", subject))
+				continue
+
+		index += 1
 
 		if name in GREEDY:
-			segments.append((name, args[index:]))
+			segments.append((name, subject + args[index:]))
 			break
 
-		collected: list[str] = []
+		collected = list(subject)
+
+		if index < len(args) and normalise(args[index]) in ACTIONS.get(name, frozenset()):
+			collected.append(args[index])
+			index += 1
 
 		while index < len(args) and command_of(args[index]) is None:
 			collected.append(args[index])

@@ -33,7 +33,7 @@ def main() -> int:
 				arguments["tmp_path"] = Path(tempfile.mkdtemp())
 
 			try:
-				function(**arguments)
+				_ = function(**arguments)
 				passed += 1
 			except Exception:
 				failures.append((f"{name}.{attribute}", traceback.format_exc()))

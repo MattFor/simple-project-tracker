@@ -12,7 +12,9 @@ def serialise(value: Any) -> str:
 		return str(value)
 
 	if isinstance(value, list):
-		return "[" + ", ".join(serialise(item) for item in value) + "]"
+		items: list[Any] = value
+
+		return "[" + ", ".join(serialise(item) for item in items) + "]"
 
 	text = str(value)
 	escaped = text.replace("\\", "\\\\").replace('"', '\\"')
@@ -72,6 +74,8 @@ def write_setting(path: Path, dotted: str, value: Any) -> str | None:
 
 	try:
 		text = path.read_text(encoding="utf-8")
+	except FileNotFoundError:
+		text = ""
 	except OSError as error:
 		return f"could not read {path}: {error}"
 
@@ -97,7 +101,8 @@ def write_setting(path: Path, dotted: str, value: Any) -> str | None:
 			lines[span[0] : span[1]] = [replacement]
 
 	try:
-		path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+		path.parent.mkdir(parents=True, exist_ok=True)
+		_ = path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 	except OSError as error:
 		return f"could not write {path}: {error}"
 

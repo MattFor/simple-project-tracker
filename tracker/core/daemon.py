@@ -11,7 +11,7 @@ from pathlib import Path
 from tracker.config import paths
 from tracker.config.settings import Settings, settings as default_settings
 from tracker.core.discovery import find_projects
-from tracker.core.models import Projects, get_id
+from tracker.core.models import Project, Projects, get_id
 from tracker.core.storage import load_data, save_data
 
 DELETED_MARKER = "[DELETED]"
@@ -59,7 +59,7 @@ def write_pid(pid: int) -> None:
 
 	try:
 		pid_file.parent.mkdir(parents=True, exist_ok=True)
-		pid_file.write_text(f"{pid}\n", encoding="utf-8")
+		_ = pid_file.write_text(f"{pid}\n", encoding="utf-8")
 	except OSError as error:
 		print(f"[ERROR] could not write the pid file: {error}")
 
@@ -77,7 +77,7 @@ def find_stray_daemons() -> list[int]:
 	if result.returncode != 0:
 		return []
 
-	pids = []
+	pids: list[int] = []
 
 	for line in result.stdout.splitlines():
 		try:
@@ -118,7 +118,7 @@ def start(settings: Settings | None = None) -> int:
 		with log:
 			process = subprocess.Popen(
 				[sys.executable, "-u", "-m", "tracker", "daemon", "run"],
-				cwd=str(paths.PROJECT_ROOT),
+				cwd=str(paths.working_dir()),
 				stdin=subprocess.DEVNULL,
 				stdout=log,
 				stderr=subprocess.STDOUT,
@@ -137,7 +137,7 @@ def start(settings: Settings | None = None) -> int:
 
 
 def stop() -> int:
-	pids = []
+	pids: list[int] = []
 
 	pid = read_pid()
 
@@ -223,7 +223,7 @@ def show_log(lines: int = 40) -> int:
 #
 
 
-def _archive(project: dict, timestamp: str) -> None:
+def _archive(project: Project, timestamp: str) -> None:
 	original = str(project.get("note", "") or "")
 
 	project["archived"] = True
@@ -247,12 +247,12 @@ def _archive(project: dict, timestamp: str) -> None:
 	project["note"] = "\n".join(statistics)
 
 
-def _restore(project: dict) -> None:
+def _restore(project: Project) -> None:
 	project["archived"] = False
 	project["note"] = str(project.get("archived_note", "") or "")
 
-	project.pop("archived_note", None)
-	project.pop("deleted_at", None)
+	_ = project.pop("archived_note", None)
+	_ = project.pop("deleted_at", None)
 
 
 def update_database(
@@ -328,7 +328,7 @@ def update_database(
 	changed = data != before
 
 	if changed:
-		save_data(data, settings)
+		_ = save_data(data, settings)
 
 	return data, changed, added, removed
 
@@ -350,7 +350,7 @@ def run(settings: Settings | None = None) -> int:
 	settings = settings or default_settings
 
 	archive: bool = settings["daemon"]["archive"]
-	interval: int = settings["daemon"]["interval"]
+	interval = settings["daemon"]["interval"]
 	watched: list[str] = settings["daemon"]["paths"]
 	timestamp_format: str = settings["daemon"]["timestamp_format"]
 
@@ -374,8 +374,8 @@ def run(settings: Settings | None = None) -> int:
 		nonlocal stopping
 		stopping = True
 
-	signal.signal(signal.SIGTERM, request_stop)
-	signal.signal(signal.SIGINT, request_stop)
+	_ = signal.signal(signal.SIGTERM, request_stop)
+	_ = signal.signal(signal.SIGINT, request_stop)
 
 	print(f"[{time.strftime(timestamp_format)}] daemon started (pid {os.getpid()})")
 	print("watching:")

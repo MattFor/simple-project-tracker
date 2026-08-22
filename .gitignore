@@ -9,3 +9,6 @@ __pycache__
 .pytest_cache
 
 my_settings.toml
+
+# Going to release this on xbps
+packaging

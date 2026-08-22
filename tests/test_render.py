@@ -1,3 +1,5 @@
+from typing import Any
+
 from tests.helpers import SAMPLE, make_projects, make_settings
 
 from tracker.core.selection import temporary_ids
@@ -12,7 +14,7 @@ def sample():
 	return make_projects(*SAMPLE)
 
 
-def rows(width, **overrides):
+def rows(width: int, **overrides: Any) -> list[str]:
 	settings = make_settings(
 		sorting__by="name",
 		sorting__direction="ascending",

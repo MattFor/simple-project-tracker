@@ -159,6 +159,8 @@ _RANGE = re.compile(r"(\d+)-(\d+)")
 # #5 always means the permanent ID | @5 always means the temporary ID
 _EXPLICIT = re.compile(r"([#@])(\d+)")
 
+_NAMED = re.compile(r"(id|tid)[:=](\d+)", re.IGNORECASE)
+
 ALL_SELECTORS = ("all", "*")
 
 
@@ -185,7 +187,9 @@ def select_projects(
 	def show(matches: list[tuple[str, Project]]) -> None:
 		from tracker.ui.render import render_rows
 
-		for line in render_rows(matches, settings, temporary_ids, show_headers=False, prefix="  "):
+		for line in render_rows(
+			matches, settings, temporary_ids, show_headers=False, prefix="  "
+		):
 			report(line)
 
 	def find_number(number: int, source: str = "any") -> list[tuple[str, Project]]:
@@ -222,7 +226,7 @@ def select_projects(
 		if len(matches) > 1:
 			report(f"[ERROR] '{number}' is both an ID and a TID:")
 			show(matches)
-			report(f"        use #{number} for the ID or @{number} for the TID")
+			report(f"        use id:{number} for the ID or tid:{number} for the TID")
 
 			return False
 
@@ -259,7 +263,13 @@ def select_projects(
 
 		if explicit:
 			source = "id" if explicit.group(1) == "#" else "tid"
-			select_number(int(explicit.group(2)), source)
+			_ = select_number(int(explicit.group(2)), source)
+			continue
+
+		named = _NAMED.fullmatch(selector)
+
+		if named:
+			_ = select_number(int(named.group(2)), named.group(1).lower())
 			continue
 
 		relative = _RELATIVE.fullmatch(selector)
@@ -276,7 +286,7 @@ def select_projects(
 			continue
 
 		if selector.isdigit():
-			select_number(int(selector))
+			_ = select_number(int(selector))
 			continue
 
 		identifier = os.path.expanduser(selector).lower().rstrip("/")

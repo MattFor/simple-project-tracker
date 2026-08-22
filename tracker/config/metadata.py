@@ -1,57 +1,72 @@
 from typing import Any
+from importlib import metadata as importlib_metadata
 
+from tracker.config import paths
 from tracker.util.files import load_toml
-from tracker.util.unknown import Unknown
-from tracker.config.paths import PROJECT_ROOT
+
+NAME = "tracker"
+VERSION = "1.0.0"
+AUTHOR = "MattFor"
 
 
-class PyProject:
-	def __init__(self, data: dict[str, Any] | None = None) -> None:
-		if data is not None:
-			self._data = data
-			return
+def _installed() -> dict[str, str]:
+	try:
+		distribution = importlib_metadata.metadata(NAME)
+	except importlib_metadata.PackageNotFoundError:
+		return {}
 
-		self._data = load_toml(PROJECT_ROOT / "pyproject.toml") or {}
+	author = distribution.get("Author") or ""
 
-	def __getitem__(self, key: str) -> Any:
-		if key in self._data:
-			value = self._data[key]
+	if not author:
+		contact = distribution.get("Author-email") or ""
+		author = contact.split("<")[0].strip().strip('"') or AUTHOR
 
-		elif isinstance(self._data.get("project"), dict) and key in self._data["project"]:
-			value = self._data["project"][key]
+	return {
+		"name": distribution.get("Name") or NAME,
+		"version": distribution.get("Version") or VERSION,
+		"author": author,
+	}
 
-		else:
-			return Unknown()
 
-		if isinstance(value, dict):
-			return PyProject(value)
+def _source_tree() -> dict[str, str]:
+	if not paths.in_source_tree():
+		return {}
 
-		return value
+	data: dict[str, Any] = load_toml(paths.PROJECT_ROOT / "pyproject.toml") or {}
+	table = data.get("project")
 
-	def __contains__(self, key: str) -> bool:
-		return not isinstance(self[key], Unknown)
+	if not isinstance(table, dict):
+		return {}
 
-	@property
-	def version(self) -> str:
-		return str(self["version"])
+	authors = table.get("authors")
+	author = AUTHOR
+
+	if isinstance(authors, list) and authors:
+		first = authors[0]
+		author = str(first.get("name", AUTHOR) if isinstance(first, dict) else first)
+
+	return {
+		"name": str(table.get("name") or NAME),
+		"version": str(table.get("version") or VERSION),
+		"author": author,
+	}
+
+
+class Metadata:
+	def __init__(self) -> None:
+		self._data: dict[str, str] = _source_tree() or _installed()
 
 	@property
 	def name(self) -> str:
-		return str(self["name"])
+		return self._data.get("name", NAME)
+
+	@property
+	def version(self) -> str:
+		return self._data.get("version", VERSION)
 
 	@property
 	def author(self) -> str:
-		authors = self["authors"]
-
-		if isinstance(authors, list) and authors:
-			first = authors[0]
-
-			if isinstance(first, dict):
-				return str(first.get("name", "unknown"))
-
-			return str(first)
-
-		return "unknown"
+		return self._data.get("author", AUTHOR)
 
 
-project = PyProject()
+project = Metadata()

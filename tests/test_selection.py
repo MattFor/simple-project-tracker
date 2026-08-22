@@ -1,3 +1,5 @@
+from tracker.core.models import Projects
+
 from tests.helpers import SAMPLE, make_projects, make_settings
 
 from tracker.core.models import get_id, new_project, normalise
@@ -15,7 +17,7 @@ def sample():
 	return make_projects(*SAMPLE)
 
 
-def names(projects):
+def names(projects: Projects) -> list[str]:
 	return [path.rsplit("/", 1)[-1] for path in projects]
 
 
@@ -120,8 +122,10 @@ def test_invalid_filters_do_not_change_the_result():
 def test_search_and_regex():
 	projects = sample()
 
+	matched = regex_projects(projects, "a$")
+
 	assert names(search_projects(projects, "BET")) == ["beta"]
-	assert names(regex_projects(projects, "a$")) == ["alpha", "beta", "gamma"]
+	assert matched is not None and names(matched) == ["alpha", "beta", "gamma"]
 	assert regex_projects(projects, "[unclosed") is None
 
 
@@ -145,3 +149,12 @@ def test_normalise_repairs_damaged_entries():
 	assert repaired["/code/a"]["status"] == "unknown"
 	assert repaired["/code/b"]["id"] != repaired["/code/a"]["id"]
 	assert "not a project" not in repaired
+
+
+def test_named_id_and_tid_prefixes_avoid_the_shell():
+	projects = sample()
+	settings = make_settings(sorting__by="name", sorting__direction="descending")
+
+	assert names(select_projects(projects, settings, ["tid:1"])) == ["gamma"]
+	assert names(select_projects(projects, settings, ["id:1"])) == ["alpha"]
+	assert names(select_projects(projects, settings, ["ID=2"])) == ["beta"]

@@ -2,7 +2,8 @@ import os
 import sys
 import shutil
 
-from typing import Any, Iterable
+from typing import Any
+from collections.abc import Iterable
 from pathlib import Path
 
 from tracker.ui.ansi import C
@@ -66,7 +67,9 @@ def visible_columns(settings: Settings) -> list[str]:
 	if not isinstance(columns, list):
 		return ["name", "status", "last_touched"]
 
-	return [column for column in columns if column in HEADERS]
+	chosen: list[str] = [str(column) for column in columns]
+
+	return [column for column in chosen if column in HEADERS]
 
 
 def status_colour(status: str, settings: Settings) -> str:
@@ -75,7 +78,9 @@ def status_colour(status: str, settings: Settings) -> str:
 	if not isinstance(colours, dict):
 		return ""
 
-	return str(colours.get(status.lower(), ""))
+	table: dict[str, Any] = colours
+
+	return str(table.get(status.lower(), ""))
 
 
 def timestamp(value: str, settings: Settings) -> str:
@@ -370,21 +375,22 @@ def print_projects(
 		limit = 0
 
 	items = list(selected.items())
-	hidden = 0
 
 	if 0 < limit < len(items):
-		hidden = len(items) - limit
 		items = items[:limit]
 
 	for line in render_rows(items, settings, tids):
 		print(line)
 
-	# Kinda useless? Idk what to do with this yet
-	# if hidden:
-	# 	word = "project" if hidden == 1 else "projects"
-	# 	print(
-	# 		f"{C.GRAY}... {hidden} more {word}, raise display.list_limit to see them{C.RESET}"
-	# 	)
+
+# Kinda useless? Idk what to do with this yet
+# hidden = len(selected) - len(items)
+#
+# if hidden:
+# 	word = "project" if hidden == 1 else "projects"
+# 	print(
+# 		f"{C.GRAY}... {hidden} more {word}, raise display.list_limit to see them{C.RESET}"
+# 	)
 
 
 def format_project(

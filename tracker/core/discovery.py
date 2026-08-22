@@ -2,10 +2,11 @@ import os
 
 from pathlib import Path
 from datetime import datetime
-from typing import Callable, Iterable
+from typing import Callable
+from collections.abc import Iterable
 
 from tracker.config.settings import Settings
-from tracker.core.models import Projects, UNKNOWN_TIME, get_id, new_project
+from tracker.core.models import Project, Projects, UNKNOWN_TIME, get_id, new_project
 
 
 def get_last_touched_date(
@@ -93,7 +94,7 @@ def find_projects(
 	settings: Settings,
 	projects: Projects | None = None,
 	*,
-	on_found: Callable[[str, dict], None] | None = None,
+	on_found: Callable[[str, Project], None] | None = None,
 ) -> Projects:
 	if projects is None:
 		projects = {}

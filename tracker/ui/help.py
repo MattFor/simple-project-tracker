@@ -1,15 +1,15 @@
 from tracker.ui.ansi import C
 
 from tracker.config import paths
-from tracker.config.metadata import PyProject
+from tracker.config.metadata import Metadata
 
 
-def print_help(project: PyProject) -> None:
+def print_help(project: Metadata) -> None:
 	try:
-		text = paths.HELP_FILE.read_text(encoding="utf-8")
+		text = paths.help_file().read_text(encoding="utf-8")
 	except OSError as error:
 		print(f"[ERROR] could not read the help file: {error}")
-		print(f"it should live at {paths.HELP_FILE}")
+		print(f"it should live at {paths.help_file()}")
 		return
 
 	replacements = {

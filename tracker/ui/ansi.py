@@ -1,7 +1,7 @@
 import os
 import sys
 
-from typing import IO
+from typing import IO, final
 
 _CODES = {
 	"RESET": "\033[0m",
@@ -18,18 +18,19 @@ _CODES = {
 }
 
 
+@final
 class Palette:
-	RESET: str
-	BOLD: str
-	DIM: str
-	RED: str
-	GREEN: str
-	YELLOW: str
-	BLUE: str
-	MAGENTA: str
-	CYAN: str
-	WHITE: str
-	GRAY: str
+	RESET: str = ""
+	BOLD: str = ""
+	DIM: str = ""
+	RED: str = ""
+	GREEN: str = ""
+	YELLOW: str = ""
+	BLUE: str = ""
+	MAGENTA: str = ""
+	CYAN: str = ""
+	WHITE: str = ""
+	GRAY: str = ""
 
 	def __init__(self, enabled: bool = True) -> None:
 		self.enabled = True
@@ -57,7 +58,7 @@ C = Palette(True)
 
 
 def configure(setting: bool = True, stream: IO[str] | None = None) -> None:
-	stream = stream or sys.stdout
+	output: IO[str] = sys.stdout if stream is None else stream
 
 	if os.environ.get("FORCE_COLOR"):
 		C.set_enabled(bool(setting))
@@ -68,7 +69,7 @@ def configure(setting: bool = True, stream: IO[str] | None = None) -> None:
 		return
 
 	try:
-		interactive = stream.isatty()
+		interactive = output.isatty()
 	except (AttributeError, ValueError):
 		interactive = False
 
