@@ -1,10 +1,11 @@
 import os
+import re
 import sys
 import shutil
 
 from typing import Any
-from collections.abc import Iterable
 from pathlib import Path
+from collections.abc import Callable, Iterable
 
 from tracker.ui.ansi import C
 from tracker.config.settings import Settings
@@ -33,7 +34,13 @@ HEADERS = {
 
 NOTE_HEADER = "NOTE"
 
-SHRINKABLE = ("path", "name", "status", "version", "language")
+FIELD_HEADERS = {**HEADERS, "note": NOTE_HEADER}
+
+SHRINKABLE = ("path", "name", "status", "version", "language", "note")
+
+_PLACEHOLDER = re.compile(r"\$(?:\{([<>])?(\w+)\}|([<>])?(\w+))")
+
+Segment = tuple[str, str, str]
 
 MINIMUM_COLUMN = 8
 MINIMUM_NOTE = 6
@@ -70,6 +77,65 @@ def visible_columns(settings: Settings) -> list[str]:
 	chosen: list[str] = [str(column) for column in columns]
 
 	return [column for column in chosen if column in HEADERS]
+
+
+def parse_format(template: str) -> list[Segment]:
+	segments: list[Segment] = []
+	index = 0
+
+	for match in _PLACEHOLDER.finditer(template):
+		if match.start() > index:
+			segments.append(("literal", template[index : match.start()], ""))
+
+		align = match.group(1) or match.group(3) or "<"
+		name = match.group(2) or match.group(4)
+
+		if name in FIELD_HEADERS:
+			segments.append(("field", name, align))
+		else:
+			segments.append(("literal", match.group(0), ""))
+
+		index = match.end()
+
+	if index < len(template):
+		segments.append(("literal", template[index:], ""))
+
+	return segments
+
+
+def column_separator(settings: Settings) -> str:
+	separator: str = settings["display"]["vertical_separator"] or " "
+
+	if settings["output"]["compact"]:
+		return separator.strip() or " "
+
+	return separator
+
+
+def layout(settings: Settings) -> tuple[list[Segment], bool]:
+	template = str(settings.get("display.format", "") or "")
+
+	if template.strip():
+		segments = parse_format(template)
+
+		if any(kind == "field" for kind, _, _ in segments):
+			return segments, True
+
+	columns = visible_columns(settings)
+
+	if not columns:
+		return [], False
+
+	separator = column_separator(settings)
+	built: list[Segment] = []
+
+	for index, column in enumerate(columns):
+		if index:
+			built.append(("literal", separator, ""))
+
+		built.append(("field", column, "<"))
+
+	return built, False
 
 
 def status_colour(status: str, settings: Settings) -> str:
@@ -114,6 +180,9 @@ def cell(path: str, project: Project, column: str, settings: Settings, tid: int)
 	if column == "last_touched":
 		return timestamp(str(project.get("last_touched", "unknown")), settings)
 
+	if column == "note":
+		return flatten(note_of(project))
+
 	if column in ("version", "language"):
 		manifest = detect_manifest(path)
 
@@ -150,7 +219,7 @@ def note_of(project: Project) -> str:
 def render_rows(
 	items: Iterable[tuple[str, Project]],
 	settings: Settings,
-	tids: dict[str, int] | None = None,
+	temporary_ids: dict[str, int] | None = None,
 	*,
 	show_headers: bool | None = None,
 	show_notes: bool | None = None,
@@ -162,11 +231,14 @@ def render_rows(
 	if not items:
 		return []
 
-	tids = tids or {}
+	temporary_ids = temporary_ids or {}
 
-	columns = visible_columns(settings)
+	segments, templated = layout(settings)
 
-	if not columns:
+	fields = [name for kind, name, _ in segments if kind == "field"]
+	aligns = [align for kind, _, align in segments if kind == "field"]
+
+	if not fields:
 		return ["no valid columns configured"]
 
 	if show_headers is None:
@@ -178,11 +250,8 @@ def render_rows(
 	if width is None:
 		width = terminal_width(settings)
 
-	separator: str = settings["display"]["vertical_separator"] or " "
+	separator = column_separator(settings)
 	horizontal: str = settings["display"]["horizontal_separator"]
-
-	if settings["output"]["compact"]:
-		separator = separator.strip() or " "
 
 	note_position: str = settings["display"]["note_position"]
 	note_minimum: int = max(MINIMUM_NOTE, int(settings.get("display.note_min_width", 24)))
@@ -191,40 +260,61 @@ def render_rows(
 		(
 			path,
 			project,
-			[
-				cell(path, project, column, settings, tids.get(path, 0))
-				for column in columns
-			],
+			[cell(path, project, field, settings, temporary_ids.get(path, 0)) for field in fields],
 		)
 		for path, project in items
 	]
 
+	label_width = show_headers or not templated
+
 	widths = [
-		max(len(HEADERS[column]), *(len(row[2][index]) for row in rows))
-		for index, column in enumerate(columns)
+		max(
+			len(FIELD_HEADERS[field]) if label_width else 0,
+			*(len(row[2][index]) for row in rows),
+		)
+		for index, field in enumerate(fields)
 	]
+
+	literals = sum(len(text) for kind, text, _ in segments if kind == "literal")
 
 	available = width - len(prefix) if width else 0
 
-	_shrink(columns, widths, separator, available)
+	_shrink(fields, widths, literals, available)
 
 	for _, _, values in rows:
 		for index, value in enumerate(values):
 			values[index] = truncate(value, widths[index])
 
-	table_width = sum(widths) + len(separator) * (len(columns) - 1)
+	# noinspection shadowing-names
+	def compose(values: list[str], render: Callable[[str, int], str]) -> str:
+		pieces: list[str] = []
+		position = 0
+
+		for kind, text, _ in segments:
+			if kind == "literal":
+				pieces.append(text)
+				continue
+
+			pieces.append(render(values[position], position))
+			position += 1
+
+		return "".join(pieces)
+
+	table_width = sum(widths) + literals
 
 	note_space = available - table_width - len(separator) if available else 0
 
 	if not available:
 		note_space = 10**6
 
+	trailing_notes = show_notes and "note" not in fields
+
 	notes: dict[str, tuple[str, bool]] = {}
 
 	for path, project, _ in rows:
 		note = flatten(note_of(project))
 
-		if not show_notes or not note:
+		if not trailing_notes or not note:
 			continue
 
 		if note_position == "below":
@@ -246,8 +336,10 @@ def render_rows(
 	lines: list[str] = []
 
 	if show_headers:
-		header = separator.join(
-			pad(HEADERS[column], widths[index]) for index, column in enumerate(columns)
+		labels = [FIELD_HEADERS[field] for field in fields]
+		header = compose(
+			labels,
+			lambda value, index: pad(value, widths[index], aligns[index] == ">"),
 		)
 
 		if inline_width:
@@ -256,7 +348,8 @@ def render_rows(
 		lines.append(prefix + f"{C.BOLD}{header.rstrip()}{C.RESET}")
 
 		if horizontal.strip():
-			rule = separator.join(horizontal * width_ for width_ in widths)
+			bars = [horizontal * width_ for width_ in widths]
+			rule = compose(bars, lambda value, _: value)
 
 			if inline_width:
 				rule = f"{rule}{separator}{horizontal * inline_width}"
@@ -264,12 +357,14 @@ def render_rows(
 			lines.append(prefix + f"{C.GRAY}{rule.rstrip()}{C.RESET}")
 
 	for path, project, values in rows:
-		painted = [
-			colourise(pad(value, widths[index]), columns[index], project, settings)
-			for index, value in enumerate(values)
-		]
 
-		line = separator.join(painted)
+		# noinspection shadowing-names,default-argument
+		def paint(value: str, index: int, project: Project = project) -> str:
+			shown = pad(value, widths[index], aligns[index] == ">")
+
+			return colourise(shown, fields[index], project, settings)
+
+		line = compose(values, paint)
 
 		note, inline = notes.get(path, ("", False))
 
@@ -289,23 +384,20 @@ def render_rows(
 	return lines
 
 
-def _shrink(
-	columns: list[str], widths: list[int], separator: str, available: int
-) -> None:
+def _shrink(fields: list[str], widths: list[int], literals: int, available: int) -> None:
 	if not available:
 		return
 
 	while True:
-		total = sum(widths) + len(separator) * (len(columns) - 1)
-		overflow = total - available
+		overflow = sum(widths) + literals - available
 
 		if overflow <= 0:
 			return
 
 		candidates = [
 			index
-			for index, column in enumerate(columns)
-			if column in SHRINKABLE and widths[index] > MINIMUM_COLUMN
+			for index, field in enumerate(fields)
+			if field in SHRINKABLE and widths[index] > MINIMUM_COLUMN
 		]
 
 		if not candidates:
@@ -336,7 +428,7 @@ def print_projects(
 		return
 
 	ordered = sort_projects(projects, settings)
-	tids = {path: tid for tid, (path, _) in enumerate(ordered, 1)}
+	temporary_ids = {path: tid for tid, (path, _) in enumerate(ordered, 1)}
 
 	selected = dict(ordered)
 
@@ -379,25 +471,15 @@ def print_projects(
 	if 0 < limit < len(items):
 		items = items[:limit]
 
-	for line in render_rows(items, settings, tids):
+	for line in render_rows(items, settings, temporary_ids):
 		print(line)
-
-
-# Kinda useless? Idk what to do with this yet
-# hidden = len(selected) - len(items)
-#
-# if hidden:
-# 	word = "project" if hidden == 1 else "projects"
-# 	print(
-# 		f"{C.GRAY}... {hidden} more {word}, raise display.list_limit to see them{C.RESET}"
-# 	)
 
 
 def format_project(
 	path: str,
 	project: Project,
 	settings: Settings,
-	tids: dict[str, int] | None = None,
+	temporary_ids: dict[str, int] | None = None,
 	among: Projects | None = None,
 	prefix: str = "",
 ) -> str:
@@ -406,7 +488,7 @@ def format_project(
 	lines = render_rows(
 		items,
 		settings,
-		tids,
+		temporary_ids,
 		show_headers=False,
 		show_notes=False,
 		prefix=prefix,

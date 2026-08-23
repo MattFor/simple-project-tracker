@@ -16,13 +16,13 @@ def visible_length(text: str) -> int:
 	return len(strip_ansi(text))
 
 
-def pad(text: str, width: int) -> str:
+def pad(text: str, width: int, right: bool = False) -> str:
 	padding = width - visible_length(text)
 
 	if padding <= 0:
 		return text
 
-	return text + " " * padding
+	return " " * padding + text if right else text + " " * padding
 
 
 def truncate(text: str, width: int) -> str:

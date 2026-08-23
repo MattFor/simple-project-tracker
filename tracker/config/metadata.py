@@ -9,9 +9,18 @@ VERSION = "1.0.0"
 AUTHOR = "MattFor"
 
 
+def _distribution() -> str:
+	try:
+		installed = importlib_metadata.packages_distributions().get(NAME, [])
+	except Exception:
+		return NAME
+
+	return installed[0] if installed else NAME
+
+
 def _installed() -> dict[str, str]:
 	try:
-		distribution = importlib_metadata.metadata(NAME)
+		distribution = importlib_metadata.metadata(_distribution())
 	except importlib_metadata.PackageNotFoundError:
 		return {}
 

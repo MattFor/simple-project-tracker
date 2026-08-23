@@ -159,24 +159,26 @@ _RANGE = re.compile(r"(\d+)-(\d+)")
 # #5 always means the permanent ID | @5 always means the temporary ID
 _EXPLICIT = re.compile(r"([#@])(\d+)")
 
-_NAMED = re.compile(r"(id|tid)[:=](\d+)", re.IGNORECASE)
+_NAMED = re.compile(r"(tid|id|t|i)[:=](\d+)", re.IGNORECASE)
 
 ALL_SELECTORS = ("all", "*")
 
 
-def select_projects(
+def resolve_selection(
 	projects: Projects,
 	settings: Settings,
 	selectors: list[str],
 	*,
 	quiet: bool = False,
-) -> Projects:
+) -> tuple[Projects, list[str]]:
 	ordered = sort_projects(projects, settings)
 
 	temporary_ids = {path: tid for tid, (path, _) in enumerate(ordered, 1)}
 	by_tid = {tid: path for path, tid in temporary_ids.items()}
 
 	selected: Projects = {}
+	unmatched: list[str] = []
+
 	preference: str = settings["projects"]["conflict_resolution_preference"]
 
 	def report(message: str) -> None:
@@ -226,7 +228,7 @@ def select_projects(
 		if len(matches) > 1:
 			report(f"[ERROR] '{number}' is both an ID and a TID:")
 			show(matches)
-			report(f"        use id:{number} for the ID or tid:{number} for the TID")
+			report(f"        use i:{number} for the ID or t:{number} for the TID")
 
 			return False
 
@@ -235,7 +237,7 @@ def select_projects(
 		return True
 
 	# noinspection shadowing-names
-	def select_range(start: int, end: int) -> None:
+	def select_range(start: int, end: int) -> bool:
 		step = 1 if end >= start else -1
 
 		found = False
@@ -249,47 +251,31 @@ def select_projects(
 		if not found:
 			report(f"[ERROR] no projects in the range '{start}-{end}'")
 
-	for selector in selectors:
-		selector = selector.strip()
+		return found
 
-		if not selector:
-			continue
+	# noinspection shadowing-names
+	def on_disk(selector: str) -> str | None:
+		candidate = Path(os.path.expanduser(selector))
 
-		if selector.lower() in ALL_SELECTORS:
-			selected.update(projects)
-			continue
+		try:
+			if not candidate.is_dir():
+				return None
 
-		explicit = _EXPLICIT.fullmatch(selector)
+			return str(candidate.resolve())
+		except OSError:
+			return None
 
-		if explicit:
-			source = "id" if explicit.group(1) == "#" else "tid"
-			_ = select_number(int(explicit.group(2)), source)
-			continue
-
-		named = _NAMED.fullmatch(selector)
-
-		if named:
-			_ = select_number(int(named.group(2)), named.group(1).lower())
-			continue
-
-		relative = _RELATIVE.fullmatch(selector)
-
-		if relative:
-			start = int(relative.group(1))
-			select_range(start, start + int(relative.group(2)))
-			continue
-
-		span = _RANGE.fullmatch(selector)
-
-		if span:
-			select_range(int(span.group(1)), int(span.group(2)))
-			continue
-
-		if selector.isdigit():
-			_ = select_number(int(selector))
-			continue
-
+	# noinspection shadowing-names
+	def select_named(selector: str, complain: bool = True) -> bool:
 		identifier = os.path.expanduser(selector).lower().rstrip("/")
+
+		resolved = on_disk(selector)
+
+		if resolved is not None:
+			for path, project in projects.items():
+				if path.lower().rstrip("/") == resolved.lower():
+					selected[path] = project
+					return True
 
 		exact_path = [
 			(path, project)
@@ -299,7 +285,7 @@ def select_projects(
 
 		if len(exact_path) == 1:
 			selected[exact_path[0][0]] = exact_path[0][1]
-			continue
+			return True
 
 		exact_name = [
 			(path, project)
@@ -309,8 +295,9 @@ def select_projects(
 
 		if len(exact_name) == 1:
 			selected[exact_name[0][0]] = exact_name[0][1]
-			continue
+			return True
 
+		# noinspection shadowing-names
 		matches = [
 			(path, project)
 			for path, project in projects.items()
@@ -318,12 +305,14 @@ def select_projects(
 		]
 
 		if not matches:
-			report(f"[ERROR] project '{selector}' was not found")
-			continue
+			if complain:
+				report(f"[ERROR] project '{selector}' was not found")
+
+			return False
 
 		if len(matches) == 1:
 			selected[matches[0][0]] = matches[0][1]
-			continue
+			return True
 
 		if preference == "starts_with":
 			starts_with = [
@@ -334,7 +323,7 @@ def select_projects(
 
 			if len(starts_with) == 1:
 				selected[starts_with[0][0]] = starts_with[0][1]
-				continue
+				return True
 
 			if starts_with:
 				matches = starts_with
@@ -343,9 +332,77 @@ def select_projects(
 			ranked = sorted(matches, key=lambda item: temporary_ids.get(item[0], 0))
 
 			selected[ranked[0][0]] = ranked[0][1]
-			continue
+			return True
 
 		report(f"[ERROR] multiple projects match '{selector}':")
 		show(matches)
+
+		return False
+
+	# noinspection shadowing-names
+	def resolve(selector: str) -> bool:
+		if selector.lower() in ALL_SELECTORS:
+			selected.update(projects)
+			return bool(projects)
+
+		explicit = _EXPLICIT.fullmatch(selector)
+
+		if explicit:
+			source = "id" if explicit.group(1) == "#" else "tid"
+
+			return select_number(int(explicit.group(2)), source)
+
+		named = _NAMED.fullmatch(selector)
+
+		if named:
+			source = "tid" if named.group(1).lower() in ("t", "tid") else "id"
+
+			return select_number(int(named.group(2)), source)
+
+		relative = _RELATIVE.fullmatch(selector)
+
+		if relative:
+			start = int(relative.group(1))
+
+			return select_range(start, start + int(relative.group(2)))
+
+		span = _RANGE.fullmatch(selector)
+
+		if span:
+			return select_range(int(span.group(1)), int(span.group(2)))
+
+		if selector.isdigit():
+			if select_number(int(selector), complain=False):
+				return True
+
+			if select_named(selector, complain=False):
+				return True
+
+			report(f"[ERROR] '{selector}' is not a known ID, TID or project")
+
+			return False
+
+		return select_named(selector)
+
+	for selector in selectors:
+		selector = selector.strip()
+
+		if not selector:
+			continue
+
+		if not resolve(selector):
+			unmatched.append(selector)
+
+	return selected, unmatched
+
+
+def select_projects(
+	projects: Projects,
+	settings: Settings,
+	selectors: list[str],
+	*,
+	quiet: bool = False,
+) -> Projects:
+	selected, _ = resolve_selection(projects, settings, selectors, quiet=quiet)
 
 	return selected

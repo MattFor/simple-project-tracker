@@ -1,4 +1,4 @@
-from tracker.cli.app import extract_flags, split
+from tracker.cli.app import extract_flags, fuse, split
 
 
 def test_a_bare_name_becomes_a_lookup():
@@ -96,3 +96,49 @@ def test_sub_actions_are_not_mistaken_for_commands():
 	assert split(["daemon", "status"]) == [("daemon", ["status"])]
 	assert split(["daemon", "restart"]) == [("daemon", ["restart"])]
 	assert split(["daemon", "log", "40"]) == [("daemon", ["log", "40"])]
+
+
+def test_a_double_dash_ends_the_options():
+	args, flags = extract_flags(["note", "3", "--", "--verbose", "-y"])
+
+	assert args == ["note", "3", "--", "--verbose", "-y"]
+	assert flags["verbose"] is False
+	assert flags["yes"] is False
+
+
+def test_a_double_dash_stops_command_matching():
+	assert split(["note", "3", "--", "check", "the", "list"]) == [
+		("note", ["3", "check", "the", "list"])
+	]
+
+	assert split(["check", "--", "list"]) == [("check", ["list"])]
+
+
+def test_only_the_first_double_dash_is_consumed():
+	assert split(["note", "3", "--", "a", "--", "b"]) == [("note", ["3", "a", "--", "b"])]
+
+
+def test_a_command_fuses_with_its_own_action():
+	assert fuse("dst") == ("daemon", "st")
+	assert fuse("ds") == ("daemon", "s")
+	assert fuse("sg") == ("settings", "g")
+	assert fuse("ss") == ("settings", "s")
+	assert fuse("fl") == ("forget", "l")
+	assert fuse("daemonstatus") == ("daemon", "status")
+
+
+def test_fusing_leaves_ordinary_words_alone():
+	for token in ("abba", "alpha", "tracker", "list", "n", "x", "", "sx", "zz"):
+		assert fuse(token) is None
+
+
+def test_fused_commands_split_like_the_spaced_form():
+	assert split(["dst"]) == split(["daemon", "st"])
+	assert split(["sg", "sorting.by"]) == [("settings", ["g", "sorting.by"])]
+	assert split(["dl", "20"]) == [("daemon", ["l", "20"])]
+
+
+def test_fusing_never_touches_free_text():
+	assert split(["note", "5", "ds", "sp"]) == [("note", ["5", "ds", "sp"])]
+	assert split(["add", "~/code", "ds"]) == [("add", ["~/code", "ds"])]
+	assert split(["check", "--", "ds"]) == [("check", ["ds"])]

@@ -1,11 +1,14 @@
-from tracker.core.models import Projects
+import os
+
+from pathlib import Path
 
 from tests.helpers import SAMPLE, make_projects, make_settings
 
-from tracker.core.models import get_id, new_project, normalise
+from tracker.core.models import Projects, get_id, new_project, normalise
 from tracker.core.selection import (
 	filter_projects,
 	regex_projects,
+	resolve_selection,
 	search_projects,
 	select_projects,
 	sort_projects,
@@ -158,3 +161,49 @@ def test_named_id_and_tid_prefixes_avoid_the_shell():
 	assert names(select_projects(projects, settings, ["tid:1"])) == ["gamma"]
 	assert names(select_projects(projects, settings, ["id:1"])) == ["alpha"]
 	assert names(select_projects(projects, settings, ["ID=2"])) == ["beta"]
+
+
+def test_short_id_and_tid_prefixes():
+	projects = sample()
+	settings = make_settings(sorting__by="name", sorting__direction="descending")
+
+	assert names(select_projects(projects, settings, ["t:1"])) == ["gamma"]
+	assert names(select_projects(projects, settings, ["i:1"])) == ["alpha"]
+	assert names(select_projects(projects, settings, ["I:2"])) == ["beta"]
+
+
+def test_a_number_falls_back_to_the_project_name():
+	projects = make_projects(
+		("/code/2024", "todo", "2026-01-01 00:00:00", ""),
+		("/code/alpha", "todo", "2026-01-02 00:00:00", ""),
+	)
+
+	settings = make_settings(sorting__by="name", sorting__direction="ascending")
+
+	assert names(select_projects(projects, settings, ["2024"])) == ["2024"]
+
+
+def test_a_path_on_disk_is_resolved(tmp_path: Path):
+	project = tmp_path / "alpha"
+	project.mkdir()
+
+	path = str(project.resolve())
+
+	projects = make_projects((path, "todo", "2026-01-01 00:00:00", ""))
+	settings = make_settings()
+
+	relative = os.path.relpath(path)
+
+	assert list(select_projects(projects, settings, [relative])) == [path]
+
+
+def test_unresolved_selectors_are_reported():
+	projects = sample()
+	settings = make_settings()
+
+	selected, unmatched = resolve_selection(
+		projects, settings, ["beta", "nonsense"], quiet=True
+	)
+
+	assert names(selected) == ["beta"]
+	assert unmatched == ["nonsense"]

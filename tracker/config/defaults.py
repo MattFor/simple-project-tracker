@@ -13,6 +13,7 @@ CONFLICT_PREFERENCES = ("starts_with", "first_match")
 def defaults() -> dict[str, Any]:
 	return {
 		"display": {
+			"format": "",
 			"list_limit": 20,
 			"show_headers": True,
 			"show_notes": True,
@@ -68,6 +69,7 @@ def defaults() -> dict[str, Any]:
 			"stop_at_project": True,
 			"follow_symlinks": False,
 			"timestamps_skip_ignored": True,
+			"exclude": [],
 		},
 		"output": {
 			"colour": True,

@@ -138,3 +138,23 @@ def test_last_touched_skips_ignored_directories(tmp_path: Path):
 
 	assert skipped is not None and included is not None
 	assert skipped < included
+
+
+def test_excluded_projects_are_never_scanned(tmp_path: Path):
+	build_tree(tmp_path)
+
+	settings = make_settings(scan__exclude=[str(tmp_path / "alpha")])
+
+	found = find_projects(str(tmp_path), settings)
+
+	assert {Path(path).name for path in found} == {"beta"}
+
+
+def test_exclusions_accept_globs_and_bare_names(tmp_path: Path):
+	build_tree(tmp_path)
+
+	by_name = find_projects(str(tmp_path), make_settings(scan__exclude=["alpha"]))
+	by_glob = find_projects(str(tmp_path), make_settings(scan__exclude=["*a"]))
+
+	assert {Path(path).name for path in by_name} == {"beta"}
+	assert by_glob == {}

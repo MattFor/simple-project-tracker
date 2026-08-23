@@ -6,13 +6,16 @@ import errno
 import signal
 import subprocess
 
+from typing import Any
 from pathlib import Path
 
 from tracker.config import paths
 from tracker.config.settings import Settings, settings as default_settings
-from tracker.core.discovery import find_projects
+from tracker.core.discovery import excluded, find_projects
 from tracker.core.models import Project, Projects, get_id
-from tracker.core.storage import load_data, save_data
+from tracker.core.storage import data_path, load_data, save_data
+from tracker.ui.ansi import C
+from tracker.util.files import load_json, read_toml, save_json
 
 DELETED_MARKER = "[DELETED]"
 
@@ -22,12 +25,20 @@ DELETED_MARKER = "[DELETED]"
 #
 
 
-def read_pid() -> int | None:
+def read_state() -> dict[str, Any] | None:
 	pid_file = paths.daemon_pid_file()
 
-	try:
-		pid = int(pid_file.read_text(encoding="utf-8").strip())
-	except (OSError, ValueError):
+	state = load_json(pid_file)
+
+	if state is None:
+		try:
+			state = {"pid": int(pid_file.read_text(encoding="utf-8").strip())}
+		except (OSError, ValueError):
+			return None
+
+	pid = state.get("pid")
+
+	if not isinstance(pid, int):
 		return None
 
 	if not is_running(pid):
@@ -38,7 +49,18 @@ def read_pid() -> int | None:
 
 		return None
 
-	return pid
+	return state
+
+
+def read_pid() -> int | None:
+	state = read_state()
+
+	if state is None:
+		return None
+
+	pid = state.get("pid")
+
+	return pid if isinstance(pid, int) else None
 
 
 def is_running(pid: int) -> bool:
@@ -54,14 +76,25 @@ def is_running(pid: int) -> bool:
 	return True
 
 
-def write_pid(pid: int) -> None:
+def write_pid(pid: int, settings: Settings, watched: list[str]) -> None:
 	pid_file = paths.daemon_pid_file()
+
+	state = {
+		"pid": pid,
+		"settings": str(settings.path),
+		"database": str(data_path(settings)),
+		"watching": watched,
+		"started": time.strftime("%Y-%m-%d %H:%M:%S"),
+	}
 
 	try:
 		pid_file.parent.mkdir(parents=True, exist_ok=True)
-		_ = pid_file.write_text(f"{pid}\n", encoding="utf-8")
 	except OSError as error:
 		print(f"[ERROR] could not write the pid file: {error}")
+		return
+
+	if not save_json(pid_file, state):
+		print(f"[ERROR] could not write the pid file: {pid_file}")
 
 
 def find_stray_daemons() -> list[int]:
@@ -128,7 +161,7 @@ def start(settings: Settings | None = None) -> int:
 		print(f"[ERROR] could not start the daemon: {error}")
 		return 1
 
-	write_pid(process.pid)
+	write_pid(process.pid, settings, _watched_paths(settings))
 
 	print(f"daemon started (pid {process.pid})")
 	print(f"logging to {log_file}")
@@ -139,7 +172,11 @@ def start(settings: Settings | None = None) -> int:
 def stop() -> int:
 	pids: list[int] = []
 
-	pid = read_pid()
+	state = read_state()
+	pid = state.get("pid") if state else None
+
+	if pid is not None and not isinstance(pid, int):
+		pid = None
 
 	if pid is not None:
 		pids.append(pid)
@@ -172,29 +209,56 @@ def stop() -> int:
 
 	print(f"stopped {stopped} daemon{'s' if stopped != 1 else ''}")
 
+	database = str(state.get("database", "")) if state else ""
+
+	if database:
+		print(f"{C.GRAY}it was watching the database at {database}{C.RESET}")
+
 	return 0
 
 
 def status(settings: Settings | None = None) -> int:
 	settings = settings or default_settings
 
-	pid = read_pid()
+	state = read_state()
 
-	if pid is None:
+	if state is None:
 		print("daemon: not running")
 	else:
-		print(f"daemon: running (pid {pid})")
+		print(f"daemon: running (pid {state.get('pid')})")
 
 	print(f"log:      {paths.daemon_log_file()}")
 	print(f"pid file: {paths.daemon_pid_file()}")
 	print(f"interval: {settings['daemon']['interval']}s")
 
-	watched = settings["daemon"]["paths"]
+	running = state.get("watching") if state else None
+	watched = running if isinstance(running, list) else _watched_paths(settings)
+
+	if state:
+		database = str(state.get("database", ""))
+		source = str(state.get("settings", ""))
+		started = str(state.get("started", ""))
+
+		if started:
+			print(f"started:  {started}")
+
+		if source:
+			print(f"settings: {source}")
+
+		if database:
+			print(f"database: {database}")
+
+			if database != str(data_path(settings)):
+				mismatch = (
+					"the running daemon uses a different database than this command"
+				)
+
+				print(f"{C.YELLOW}[WARNING] {mismatch}{C.RESET}")
 
 	print("watching:" if watched else "watching: nothing configured")
 
 	for path in watched:
-		print(f"  {os.path.abspath(os.path.expanduser(path))}")
+		print(f"  {os.path.abspath(os.path.expanduser(str(path)))}")
 
 	return 0
 
@@ -255,21 +319,13 @@ def _restore(project: Project) -> None:
 	_ = project.pop("deleted_at", None)
 
 
-def update_database(
-	watched: list[str],
-	data: Projects,
-	archive: bool,
-	settings: Settings | None = None,
-) -> tuple[Projects, bool, list[str], list[str]]:
+def scan_watched(
+	watched: list[str], settings: Settings | None = None
+) -> tuple[list[Path], Projects]:
 	settings = settings or default_settings
 
-	before = copy.deepcopy(data)
-	before_paths = set(data)
-
-	timestamp_format: str = settings["daemon"]["timestamp_format"]
-
 	valid: list[Path] = []
-	found: set[str] = set()
+	found: Projects = {}
 
 	for entry in watched:
 		path = Path(os.path.expanduser(entry)).resolve()
@@ -279,27 +335,46 @@ def update_database(
 			continue
 
 		valid.append(path)
+		found.update(find_projects(str(path), settings))
 
-		scanned = find_projects(str(path), settings)
-		found.update(scanned)
+	return valid, found
 
-		for project_path, scanned_project in scanned.items():
-			existing = data.get(project_path)
 
-			if existing is None:
-				scanned_project["id"] = get_id(data)
-				scanned_project["first_seen"] = time.strftime(timestamp_format)
-				scanned_project["archived"] = False
+def merge_scan(
+	data: Projects,
+	valid: list[Path],
+	found: Projects,
+	archive: bool,
+	settings: Settings | None = None,
+) -> tuple[bool, list[str], list[str]]:
+	settings = settings or default_settings
 
-				data[project_path] = scanned_project
-				continue
+	before = copy.deepcopy(data)
+	before_paths = set(data)
 
-			existing["last_touched"] = scanned_project["last_touched"]
+	timestamp_format: str = settings["daemon"]["timestamp_format"]
 
-			if existing.get("archived", False):
-				_restore(existing)
+	for project_path, scanned_project in found.items():
+		existing = data.get(project_path)
+
+		if existing is None:
+			entry = copy.deepcopy(scanned_project)
+
+			entry["id"] = get_id(data)
+			entry["first_seen"] = time.strftime(timestamp_format)
+			entry["archived"] = False
+
+			data[project_path] = entry
+			continue
+
+		existing["last_touched"] = scanned_project["last_touched"]
+
+		if existing.get("archived", False):
+			_restore(existing)
 
 	removed: list[str] = []
+
+	exclude: list[str] = settings["scan"]["exclude"]
 
 	for project_path in list(data):
 		project = Path(project_path)
@@ -307,7 +382,7 @@ def update_database(
 		if not any(project.is_relative_to(root) for root in valid):
 			continue
 
-		if project_path in found:
+		if project_path in found or excluded(project_path, exclude):
 			continue
 
 		project_data = data[project_path]
@@ -325,7 +400,19 @@ def update_database(
 
 	added = [path for path in data if path not in before_paths]
 
-	changed = data != before
+	return data != before, added, removed
+
+
+def update_database(
+	watched: list[str],
+	data: Projects,
+	archive: bool,
+	settings: Settings | None = None,
+) -> tuple[Projects, bool, list[str], list[str]]:
+	settings = settings or default_settings
+
+	valid, found = scan_watched(watched, settings)
+	changed, added, removed = merge_scan(data, valid, found, archive, settings)
 
 	if changed:
 		_ = save_data(data, settings)
@@ -346,12 +433,58 @@ def _report(title: str, entries: list[tuple[str, str, str]], timestamp: str) -> 
 		print(f"  {marker:<{marker_width}}  {name:<{name_width}}  {path}")
 
 
+def _stamp(path: Path) -> float:
+	try:
+		return path.stat().st_mtime
+	except OSError:
+		return 0.0
+
+
+def reload_settings(settings: Settings, stamp: float) -> tuple[Settings, float]:
+	current = _stamp(settings.path)
+
+	if current == stamp:
+		return settings, stamp
+
+	loaded, error = read_toml(settings.path)
+
+	if error is not None:
+		print(f"[WARNING] {error}, keeping the previous settings")
+		return settings, current
+
+	if loaded is None:
+		return settings, current
+
+	refreshed = Settings.merged(loaded, path=settings.path)
+
+	for problem in refreshed.problems:
+		print(f"[WARNING] {problem}")
+
+	print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] settings reloaded")
+
+	return refreshed, current
+
+
+def _watched_paths(settings: Settings) -> list[str]:
+	configured: list[str] = settings["daemon"]["paths"]
+
+	return [os.path.abspath(os.path.expanduser(path)) for path in configured]
+
+
+def _interval_of(settings: Settings) -> int:
+	interval = settings["daemon"]["interval"]
+
+	if not isinstance(interval, int) or interval < 1:
+		return 60
+
+	return interval
+
+
 def run(settings: Settings | None = None) -> int:
 	settings = settings or default_settings
 
-	archive: bool = settings["daemon"]["archive"]
-	interval = settings["daemon"]["interval"]
-	watched: list[str] = settings["daemon"]["paths"]
+	interval = _interval_of(settings)
+	watched = _watched_paths(settings)
 	timestamp_format: str = settings["daemon"]["timestamp_format"]
 
 	if not watched:
@@ -359,14 +492,9 @@ def run(settings: Settings | None = None) -> int:
 		print(f"add them under [daemon] in {settings.path}")
 		return 1
 
-	if not isinstance(interval, int) or interval < 1:
-		interval = 60
+	stamp = _stamp(settings.path)
 
-	watched = [os.path.abspath(os.path.expanduser(path)) for path in watched]
-
-	data = load_data(settings)
-
-	write_pid(os.getpid())
+	write_pid(os.getpid(), settings, watched)
 
 	stopping = False
 
@@ -389,9 +517,21 @@ def run(settings: Settings | None = None) -> int:
 		while not stopping:
 			started = time.monotonic()
 
-			data, changed, added, removed = update_database(
-				watched, data, archive, settings
-			)
+			settings, stamp = reload_settings(settings, stamp)
+
+			archive: bool = settings["daemon"]["archive"]
+			interval = _interval_of(settings)
+			watched = _watched_paths(settings)
+			timestamp_format = settings["daemon"]["timestamp_format"]
+
+			valid, found = scan_watched(watched, settings)
+
+			data = load_data(settings)
+
+			changed, added, removed = merge_scan(data, valid, found, archive, settings)
+
+			if changed:
+				_ = save_data(data, settings)
 
 			timestamp = time.strftime(timestamp_format)
 

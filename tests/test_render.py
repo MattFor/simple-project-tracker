@@ -2,9 +2,9 @@ from typing import Any
 
 from tests.helpers import SAMPLE, make_projects, make_settings
 
-from tracker.core.selection import temporary_ids
 from tracker.ui import ansi
 from tracker.ui.render import render_rows
+from tracker.core.selection import temporary_ids
 from tracker.util.text import human_size, relative_time, truncate, wrap
 
 ansi.C.set_enabled(False)
@@ -126,3 +126,48 @@ def test_text_helpers():
 	assert wrap("a bb ccc", 4) == ["a bb", "ccc"]
 	assert human_size(2048) == "2.0 KiB"
 	assert "ago" in relative_time(__import__("datetime").datetime(2020, 1, 1))
+
+
+def test_a_format_string_replaces_the_columns():
+	lines = rows(
+		120, display__format="$tid. $name [$status]", display__show_headers=False
+	)
+
+	assert lines[0].startswith("1. alpha [current")
+
+
+def test_a_format_string_stays_aligned():
+	lines = rows(120, display__format="$name|$status|", display__show_headers=False)
+
+	bars = [line.index("|") for line in lines if "|" in line]
+
+	assert len(set(bars)) == 1
+
+
+def test_a_format_field_can_be_right_aligned():
+	left = rows(120, display__format="$tid|", display__show_headers=True)[2]
+	right = rows(120, display__format="$>tid|", display__show_headers=True)[2]
+
+	assert left.startswith("1  |")
+	assert right.startswith("  1|")
+
+
+def test_an_unknown_format_field_stays_literal():
+	lines = rows(120, display__format="$name $nope", display__show_headers=False)
+
+	assert "$nope" in lines[0]
+
+
+def test_a_format_string_can_place_the_note_itself():
+	lines = rows(120, display__format="$name -> $note", display__show_headers=False)
+
+	alpha = [line for line in lines if "alpha" in line][0]
+
+	assert "-> short note" in alpha
+	assert len([line for line in lines if "short note" in line]) == 1
+
+
+def test_braces_separate_a_field_from_the_text_after_it():
+	lines = rows(120, display__format="${tid}x $name", display__show_headers=False)
+
+	assert lines[0].startswith("1x ")

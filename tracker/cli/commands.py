@@ -6,26 +6,28 @@ from typing import Any
 from pathlib import Path
 from dataclasses import dataclass, field
 
+from tracker.core import daemon
 from tracker.config import paths
-from tracker.config.defaults import SECTION_TITLES, defaults
-from tracker.config.settings import Settings, parse_setting_value
 from tracker.config.writer import write_setting
 from tracker.config.metadata import project as metadata
-from tracker.core import daemon
+from tracker.config.defaults import SECTION_TITLES, defaults
+from tracker.config.settings import Settings, parse_setting_value
+
 from tracker.core.discovery import (
 	find_projects,
 	format_last_touched,
 	get_last_touched_date,
 	is_project,
 )
-from tracker.core.models import Projects, get_id, new_project
-from tracker.core.selection import select_projects, temporary_ids
-from tracker.core.storage import data_path, save_data
+
 from tracker.ui.ansi import C
-from tracker.ui.details import print_details
 from tracker.ui.help import print_help
-from tracker.ui.render import format_project, print_projects, render_rows
+from tracker.ui.details import print_details
+from tracker.core.storage import data_path, save_data
 from tracker.util.text import parse_time, relative_time
+from tracker.core.models import Projects, get_id, new_project
+from tracker.ui.render import format_project, print_projects, render_rows
+from tracker.core.selection import resolve_selection, select_projects, temporary_ids
 
 
 @dataclass
@@ -43,7 +45,7 @@ class Context:
 	def save(self) -> bool:
 		return save_data(self.data, self.settings)
 
-	def tids(self) -> dict[str, int]:
+	def temporary_ids(self) -> dict[str, int]:
 		return temporary_ids(self.data, self.settings)
 
 
@@ -54,6 +56,34 @@ def missing_project(command: str) -> int:
 	print(f"{C.GRAY}        {hint}{C.RESET}")
 
 	return 1
+
+
+def suggest_command(args: list[str]) -> None:
+	from difflib import get_close_matches
+
+	from tracker.cli.app import COMMANDS
+
+	if len(args) != 1:
+		return
+
+	matches = get_close_matches(
+		args[0].lower().strip("-"), list(COMMANDS), n=1, cutoff=0.7
+	)
+
+	if matches:
+		print(f"{C.GRAY}        maybe '{COMMANDS[matches[0]]}'?{C.RESET}")
+
+
+def select_all_or_nothing(
+	context: Context, command: str, args: list[str]
+) -> Projects | None:
+	selected, unmatched = resolve_selection(context.data, context.settings, args)
+
+	if unmatched:
+		print(f"[ERROR] {command} did nothing, unresolved: {', '.join(unmatched)}")
+		return None
+
+	return selected or None
 
 
 def confirm(context: Context, question: str) -> bool:
@@ -172,7 +202,8 @@ def command_check(context: Context, args: list[str]) -> int:
 	if not selected:
 		return 1
 
-	tids = context.tids()
+	# noinspection shadowing-names
+	temporary_ids = context.temporary_ids()
 
 	for index, (path, project) in enumerate(selected.items()):
 		if index:
@@ -182,7 +213,7 @@ def command_check(context: Context, args: list[str]) -> int:
 			path,
 			project,
 			context.settings,
-			tids.get(path, 0),
+			temporary_ids.get(path, 0),
 			verbose=context.verbose,
 		)
 
@@ -193,9 +224,11 @@ def command_show(context: Context, args: list[str]) -> int:
 	selected = select_projects(context.data, context.settings, args)
 
 	if not selected:
+		suggest_command(args)
 		return 1
 
-	temporary_ids = context.tids()
+	# noinspection shadowing-names
+	temporary_ids = context.temporary_ids()
 
 	for line in render_rows(
 		selected.items(), context.settings, temporary_ids, show_headers=False
@@ -318,7 +351,7 @@ def command_add(context: Context, args: list[str]) -> int:
 		if project_path in data:
 			print("[ERROR] this project is already tracked")
 			print(
-				format_project(project_path, data[project_path], settings, context.tids())
+				format_project(project_path, data[project_path], settings, context.temporary_ids())
 			)
 			return 1
 
@@ -337,7 +370,7 @@ def command_add(context: Context, args: list[str]) -> int:
 			return 1
 
 		print(
-			f"added {format_project(project_path, data[project_path], settings, context.tids())}"
+			f"added {format_project(project_path, data[project_path], settings, context.temporary_ids())}"
 		)
 
 		return 0
@@ -366,12 +399,13 @@ def command_add(context: Context, args: list[str]) -> int:
 
 	print(f"added {len(added)} project{'s' if len(added) != 1 else ''}")
 
-	tids = context.tids()
+	# noinspection shadowing-names
+	temporary_ids = context.temporary_ids()
 
 	for line in render_rows(
 		[(project_path, data[project_path]) for project_path in added],
 		settings,
-		tids,
+		temporary_ids,
 		show_headers=False,
 		prefix="  ",
 	):
@@ -426,12 +460,13 @@ def command_init(context: Context, args: list[str]) -> int:
 	if updated:
 		print(f"refreshed {updated}")
 
-	tids = context.tids()
+	# noinspection shadowing-names
+	temporary_ids = context.temporary_ids()
 
 	for line in render_rows(
 		[(project_path, context.data[project_path]) for project_path in added],
 		settings,
-		tids,
+		temporary_ids,
 		show_headers=False,
 		prefix="  ",
 	):
@@ -466,18 +501,19 @@ def command_remove(context: Context, args: list[str]) -> int:
 
 		return 0
 
-	selected = select_projects(data, settings, args)
+	selected = select_all_or_nothing(context, "remove", args)
 
-	if not selected:
+	if selected is None:
 		return 1
 
-	tids = context.tids()
+	# noinspection shadowing-names
+	temporary_ids = context.temporary_ids()
 
 	if len(selected) > 1 and not confirm(context, f"remove {len(selected)} projects?"):
 		print("cancelled")
 		return 1
 
-	lines = render_rows(selected.items(), settings, tids, show_headers=False, prefix="  ")
+	lines = render_rows(selected.items(), settings, temporary_ids, show_headers=False, prefix="  ")
 
 	for project_path in selected:
 		del data[project_path]
@@ -576,7 +612,7 @@ def command_edit(context: Context, args: list[str]) -> int:
 
 	path, project = next(iter(selected.items()))
 
-	print(f"edited {format_project(path, project, settings, context.tids())}")
+	print(f"edited {format_project(path, project, settings, context.temporary_ids())}")
 
 	empty = '""'
 
@@ -603,6 +639,168 @@ def command_note(context: Context, args: list[str]) -> int:
 
 def command_status(context: Context, args: list[str]) -> int:
 	return edit_field(context, args, "status")
+
+
+def exclusions(settings: Settings) -> list[str]:
+	configured = settings.get("scan.exclude", [])
+
+	if not isinstance(configured, list):
+		return []
+
+	patterns: list[Any] = configured
+
+	return [str(pattern) for pattern in patterns]
+
+
+def save_exclusions(patterns: list[str]) -> bool:
+	target = paths.editable_settings_file()
+
+	error = write_setting(target, "scan.exclude", patterns)
+
+	if error:
+		print(f"[ERROR] {error}")
+		return False
+
+	print(f"{C.GRAY}saved to {target}{C.RESET}")
+
+	return True
+
+
+def _show_exclusions(patterns: list[str]) -> int:
+	if not patterns:
+		print("nothing is excluded from scans")
+		return 0
+
+	print(f"{C.BOLD}Excluded from scans{C.RESET}")
+
+	for pattern in patterns:
+		print(f"  {pattern}")
+
+	return 0
+
+
+def _clear_exclusions(context: Context, patterns: list[str], wanted: list[str]) -> int:
+	if not patterns:
+		print("nothing is excluded from scans")
+		return 0
+
+	if not wanted:
+		if not confirm(context, f"stop excluding all {len(patterns)} patterns?"):
+			print("cancelled")
+			return 1
+
+		return 0 if save_exclusions([]) else 1
+
+	dropped = [pattern for pattern in patterns if pattern in wanted]
+
+	if not dropped:
+		print(f"[ERROR] nothing excluded matches '{' '.join(wanted)}'")
+		return 1
+
+	kept = [pattern for pattern in patterns if pattern not in dropped]
+
+	if not save_exclusions(kept):
+		return 1
+
+	for pattern in dropped:
+		print(f"no longer excluded: {pattern}")
+
+	return 0
+
+
+def command_forget(context: Context, args: list[str]) -> int:
+	settings = context.settings
+	patterns = exclusions(settings)
+
+	action = args[0].lower().strip("-") if args else "list"
+
+	if action in ("list", "l", "show"):
+		return _show_exclusions(patterns)
+
+	if action in ("clear", "c", "reset", "allow"):
+		return _clear_exclusions(context, patterns, args[1:])
+
+	selected = select_all_or_nothing(context, "forget", args)
+
+	if selected is None:
+		return 1
+
+	if len(selected) > 1 and not confirm(context, f"forget {len(selected)} projects?"):
+		print("cancelled")
+		return 1
+
+	lines = render_rows(
+		selected.items(), settings, context.temporary_ids(), show_headers=False, prefix="  "
+	)
+
+	for project_path in selected:
+		del context.data[project_path]
+
+	if not context.save():
+		return 1
+
+	updated = list(patterns)
+
+	for project_path in selected:
+		if project_path not in updated:
+			updated.append(project_path)
+
+	if not save_exclusions(updated):
+		return 1
+
+	print(f"forgot {len(selected)} project{'s' if len(selected) != 1 else ''}")
+
+	for line in lines:
+		print(line)
+
+	return 0
+
+
+SHELLS = ("bash", "zsh", "fish")
+
+
+def _completion_words(context: Context, prefix: str) -> None:
+	from tracker.cli.app import COMMANDS
+
+	candidates = set(COMMANDS)
+
+	for path in context.data:
+		candidates.add(Path(path).name)
+
+	lowered = prefix.lower()
+
+	for candidate in sorted(candidates):
+		if candidate.lower().startswith(lowered):
+			print(candidate)
+
+
+def command_completion(context: Context, args: list[str]) -> int:
+	action = args[0].lower().strip("-") if args else ""
+
+	if action in ("words", "w"):
+		_completion_words(context, args[1] if len(args) > 1 else "")
+		return 0
+
+	if action in SHELLS:
+		script = paths.bundled_file(f"completion.{action}")
+
+		try:
+			print(script.read_text(encoding="utf-8").rstrip())
+		except OSError as error:
+			print(f"[ERROR] could not read {script}: {error}")
+			return 1
+
+		return 0
+
+	if action:
+		print(f"[ERROR] unknown shell '{args[0]}'")
+	else:
+		print("[ERROR] completion needs a shell")
+
+	print(f"available: {', '.join(SHELLS)}")
+	print(f'{C.GRAY}  eval "$(tracker completion bash)"{C.RESET}')
+
+	return 1
 
 
 #
@@ -667,7 +865,7 @@ def command_settings(context: Context, args: list[str]) -> int:
 		settings.edit()
 		return 0
 
-	if action in ("path", "p", "where"):
+	if action in ("path", "p", "where", "w"):
 		print(settings.path)
 		return 0
 

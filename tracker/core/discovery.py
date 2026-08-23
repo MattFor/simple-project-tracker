@@ -1,5 +1,6 @@
 import os
 
+from fnmatch import fnmatch
 from pathlib import Path
 from datetime import datetime
 from typing import Callable
@@ -89,6 +90,21 @@ def is_project(path: Path, detect_git: bool) -> bool:
 	return git.is_dir() or git.is_file()
 
 
+def excluded(path: str, patterns: Iterable[str]) -> bool:
+	name = Path(path).name
+
+	for pattern in patterns:
+		expanded = os.path.expanduser(str(pattern)).rstrip("/")
+
+		if not expanded:
+			continue
+
+		if fnmatch(path, expanded) or fnmatch(name, expanded):
+			return True
+
+	return False
+
+
 def find_projects(
 	path: str | os.PathLike[str],
 	settings: Settings,
@@ -110,6 +126,7 @@ def find_projects(
 	follow_symlinks: bool = settings["scan"]["follow_symlinks"]
 	skip_ignored: bool = settings["scan"]["timestamps_skip_ignored"]
 
+	exclude: list[str] = settings["scan"]["exclude"]
 	ignore: list[str] = settings["projects"]["ignore"]
 	time_format: str = settings["display"]["time_format"]
 	default_status: str = settings["projects"]["default_status"]
@@ -128,6 +145,12 @@ def find_projects(
 			continue
 
 		project_path = str(current)
+
+		if excluded(project_path, exclude):
+			if stop_at_project:
+				dirs[:] = []
+
+			continue
 
 		last_touched = format_last_touched(
 			get_last_touched_date(project_path, timestamp_ignore, follow_symlinks),

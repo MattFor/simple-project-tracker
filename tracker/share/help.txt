@@ -109,6 +109,18 @@
          {GREEN}tracker status 12 blocked{RESET}
          {GREEN}tracker tracker st current{RESET}
 
+   {YELLOW}forget{RESET}, {GRAY}ignore{RESET}
+      Stop tracking projects and keep scans from finding them again.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}tracker forget <selection>{RESET}
+         {GREEN}tracker forget list{RESET}
+         {GREEN}tracker forget clear{RESET}
+         {GREEN}tracker forget clear <pattern>{RESET}
+
+      {GRAY}The paths are written to scan.exclude in settings.{RESET}
+      {GRAY}Daemon picks the change up on the next scan.{RESET}
+
    {YELLOW}init{RESET}, {GRAY}i, scan{RESET}
       Scan a directory and add whatever it finds. Existing entries keep their ID, status and note, only the timestamp is refreshed.
 
@@ -126,6 +138,14 @@
 
    {YELLOW}stats{RESET}, {GRAY}stat, summary{RESET}
       Show how many projects are tracked, how they are split by status and which ones were touched most and least recently.
+
+   {YELLOW}completion{RESET}
+      Print a shell completion script for command and project names.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}eval "$(tracker completion bash)"{RESET}   {GRAY}~/.bashrc{RESET}
+         {GREEN}eval "$(tracker completion zsh)"{RESET}    {GRAY}~/.zshrc{RESET}
+         {GREEN}tracker completion fish > ~/.config/fish/completions/tracker.fish{RESET}
 
    {YELLOW}settings{RESET}, {GRAY}s, config, conf{RESET}
       View or change the configuration.
@@ -157,21 +177,35 @@
       {GRAY}The daemon periodically scans the directories configured under [daemon].{RESET}
       {GRAY}Its output goes to a log file, see {GREEN}tracker daemon status{GRAY} for where.{RESET}
 
+{BOLD}Short forms:{RESET}
+   {GRAY}A command and one of its own actions can be written as one word.{RESET}
+
+   {GREEN}t dst{RESET}    {GRAY}daemon status{RESET}          {GREEN}t sg <setting>{RESET}   {GRAY}settings get{RESET}
+   {GREEN}t ds{RESET}     {GRAY}daemon start{RESET}           {GREEN}t ss <k> <v>{RESET}     {GRAY}settings set{RESET}
+   {GREEN}t dk{RESET}     {GRAY}daemon stop{RESET}            {GREEN}t se{RESET}             {GRAY}settings edit{RESET}
+   {GREEN}t dr{RESET}     {GRAY}daemon restart{RESET}         {GREEN}t sp{RESET}             {GRAY}settings path{RESET}
+   {GREEN}t dl{RESET}     {GRAY}daemon log{RESET}             {GREEN}t fl{RESET}             {GRAY}forget list{RESET}
+                                   {GREEN}t fc{RESET}             {GRAY}forget clear{RESET}
+
+   {GRAY}Only a command plus its own action fuses. Put a project that collides after {GREEN}--{GRAY}.{RESET}
+
 {BOLD}Project selection:{RESET}
    {GRAY}Projects can be identified by:{RESET}
    {GREEN}ID{RESET}             Permanent global ID
    {GREEN}TID{RESET}            Temporary ID from the current sorted view
-   {GREEN}id:n{RESET}           Force the permanent ID
-   {GREEN}tid:n{RESET}          Force the temporary ID
+   {GREEN}i:n{RESET}            Force the permanent ID {GRAY}(id:n too){RESET}
+   {GREEN}t:n{RESET}            Force the temporary ID {GRAY}(tid:n too){RESET}
    {GREEN}#n{RESET}             Force the permanent ID {GRAY}(quote it, the shell reads # as a comment){RESET}
    {GREEN}@n{RESET}             Force the temporary ID
    {GREEN}n-x{RESET}            Inclusive range, in either direction
    {GREEN}n+x{RESET}            n and the next x projects
    {GREEN}all{RESET}            Every tracked project
    {GREEN}name{RESET}           Exact or partial project name
-   {GREEN}path{RESET}           Exact or partial project path
+   {GREEN}path{RESET}           Exact or partial project path, tab completion included
 
 {GRAY}Ambiguous partial matches are resolved according to projects.conflict_resolution_preference.{RESET}
+
+{GRAY}remove and forget do nothing at all unless every selector resolved.{RESET}
 
 {BOLD}List filters:{RESET}
    {GRAY}Filters work on the command line and in display.filter in the settings.{RESET}
@@ -183,6 +217,23 @@
 
    {GRAY}Example:{RESET}
       {GREEN}filter = ["+m:python", "-m:test", "+r:^relaxy-"]{RESET}
+
+{BOLD}Row format:{RESET}
+   {GRAY}display.format lays each row out instead of using columns.{RESET}
+
+   {GREEN}$tid $id $name $path $status $last_touched $version $language $note{RESET}
+
+   {GRAY}Fields are padded; output stays aligned. $> aligns a field to the{RESET}
+   {GRAY}right, ${RESET}{GREEN}{name}{RESET}{GRAY} lets text follow a field immediately.{RESET}
+
+   {GRAY}Examples:{RESET}
+      {GREEN}tracker list 'display.format=$>tid. $name [$status]'{RESET}
+      {GREEN}tracker settings set display.format '${tid}) $name - $note'{RESET}
+
+   {GRAY}Anything that is not a known field is printed as written, and a format{RESET}
+   {GRAY}holding $note places the note itself instead of the usual placement.{RESET}
+
+   {GRAY}Use single quotes, shells tend to eat $name inside double quotes.{RESET}
 
 {BOLD}Notes:{RESET}
    {GRAY}A note is shown on the same line as its project and only moves to its own{RESET}
@@ -198,6 +249,11 @@
 
    {MAGENTA}--yes{RESET}, {GRAY}-y, --force{RESET}
       Do not ask for confirmation.
+
+   {MAGENTA}--{RESET}
+      Everything after this is text, not options or commands. Use it for a note that starts with a dash or contains a command name.
+
+         {GREEN}tracker note 12 -- --verbose is not a flag here{RESET}
 
    {MAGENTA}--no-colour{RESET}, {GRAY}--no-color, --colour, --color{RESET}
       Force colour off or on. Colour is disabled automatically when the output

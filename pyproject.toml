@@ -43,7 +43,7 @@ where = ["."]
 include = ["tracker*"]
 
 [tool.setuptools.package-data]
-tracker = ["share/*.toml", "share/*.txt"]
+tracker = ["share/*.toml", "share/*.txt", "share/completion.*"]
 
 [dependency-groups]
 dev = [

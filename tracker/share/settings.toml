@@ -1,4 +1,16 @@
 [display]
+# Lay each row out yourself instead of using columns and the separators below.
+# Empty means use columns.
+#
+# $tid $id $name $path $status $last_touched $version $language $note
+#
+# Fields are padded so everything stays aligned. Write $> to align a field to
+# the right, ${name} when text follows it immediately.
+#
+# format = "$>tid. $name [$status] $last_touched"
+# format = "${tid}) $name - $note"
+format = ""
+
 # Maximum number of projects shown at once, 0 means no limit.
 list_limit = 20
 
@@ -105,6 +117,9 @@ follow_symlinks = false
 # Skip the ignored directories when working out the last touched date.
 # Keeps .git, node_modules and friends from counting as your own edits.
 timestamps_skip_ignored = true
+
+# Projects excluded from being indexed.
+exclude = []
 
 
 [output]

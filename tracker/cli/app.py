@@ -27,6 +27,11 @@ COMMANDS: dict[str, str] = {
 	"r": "remove",
 	"delete": "remove",
 	"del": "remove",
+	"forget": "forget",
+	"f": "forget",
+	"ignore": "forget",
+	"completion": "completion",
+	"completions": "completion",
 	"check": "check",
 	"c": "check",
 	"cc": "check",
@@ -75,14 +80,21 @@ HANDLERS: dict[str, Handler] = {
 	"show": commands.command_show,
 	"note": commands.command_note,
 	"status": commands.command_status,
+	"forget": commands.command_forget,
+	"completion": commands.command_completion,
 }
 
-GREEDY = frozenset({"add", "edit", "note", "status"})
+GREEDY = frozenset({"add", "completion", "edit", "note", "status"})
 
-SUBJECT = frozenset({"check", "edit", "note", "path", "remove", "show", "status"})
+SUBJECT = frozenset(
+	{"check", "edit", "forget", "note", "path", "remove", "show", "status"}
+)
 
 ACTIONS: dict[str, frozenset[str]] = {
-	"settings": frozenset({"edit", "e", "path", "p", "where", "get", "g", "set", "s"}),
+	"forget": frozenset({"list", "l", "show", "clear", "c", "reset", "allow"}),
+	"settings": frozenset(
+		{"edit", "e", "path", "p", "where", "w", "get", "g", "set", "s"}
+	),
 	"daemon": frozenset(
 		{
 			"start",
@@ -105,6 +117,8 @@ ACTIONS: dict[str, frozenset[str]] = {
 	),
 }
 
+LITERAL = "--"
+
 VERBOSE_FLAGS = frozenset({"verbose", "vv"})
 YES_FLAGS = frozenset({"yes", "y", "force", "f"})
 NO_COLOUR_FLAGS = frozenset({"no-color", "no-colour", "nocolor", "nocolour"})
@@ -119,21 +133,85 @@ def command_of(token: str) -> str | None:
 	return COMMANDS.get(normalise(token))
 
 
+def fuse(token: str) -> tuple[str, str] | None:
+	key = normalise(token)
+
+	for cut in range(1, len(key)):
+		name = COMMANDS.get(key[:cut])
+
+		if name is None:
+			continue
+
+		action = key[cut:]
+
+		if action in ACTIONS.get(name, frozenset()):
+			return name, action
+
+	return None
+
+
+def expand(args: list[str]) -> list[str]:
+	expanded: list[str] = []
+	literal = False
+
+	for token in args:
+		if literal:
+			expanded.append(token)
+			continue
+
+		if token == LITERAL:
+			literal = True
+			expanded.append(token)
+			continue
+
+		name = command_of(token)
+
+		if name is not None:
+			expanded.append(token)
+			literal = name in GREEDY
+			continue
+
+		pair = fuse(token)
+
+		if pair is None:
+			expanded.append(token)
+			continue
+
+		expanded.extend(pair)
+
+	return expanded
+
+
 def split(args: list[str]) -> list[tuple[str, list[str]]]:
+	args = expand(args)
+
+	literal = len(args)
+
+	if LITERAL in args:
+		literal = args.index(LITERAL)
+		del args[literal]
+
+	# noinspection shadowing-names
+	def command_at(index: int) -> str | None:
+		if index >= literal:
+			return None
+
+		return command_of(args[index])
+
 	segments: list[tuple[str, list[str]]] = []
 
 	index = 0
 
 	while index < len(args):
-		name = command_of(args[index])
+		name = command_at(index)
 		subject: list[str] = []
 
 		if name is None:
-			while index < len(args) and command_of(args[index]) is None:
+			while index < len(args) and command_at(index) is None:
 				subject.append(args[index])
 				index += 1
 
-			name = command_of(args[index]) if index < len(args) else None
+			name = command_at(index) if index < len(args) else None
 
 			if name is None or name not in SUBJECT:
 				segments.append(("show", subject))
@@ -147,11 +225,11 @@ def split(args: list[str]) -> list[tuple[str, list[str]]]:
 
 		collected = list(subject)
 
-		if index < len(args) and normalise(args[index]) in ACTIONS.get(name, frozenset()):
+		if index < literal and normalise(args[index]) in ACTIONS.get(name, frozenset()):
 			collected.append(args[index])
 			index += 1
 
-		while index < len(args) and command_of(args[index]) is None:
+		while index < len(args) and command_at(index) is None:
 			collected.append(args[index])
 			index += 1
 
@@ -165,8 +243,18 @@ def extract_flags(args: list[str]) -> tuple[list[str], dict[str, Any]]:
 
 	remaining: list[str] = []
 	greedy_reached = False
+	literal = False
 
 	for token in args:
+		if literal:
+			remaining.append(token)
+			continue
+
+		if token == LITERAL:
+			literal = True
+			remaining.append(token)
+			continue
+
 		if greedy_reached and not token.startswith("-"):
 			remaining.append(token)
 			continue

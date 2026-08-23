@@ -80,6 +80,14 @@ Set the status of the selected projects without naming the field, for example
 .BR "tracker 12 st blocked" .
 
 .TP
+.BR forget ", " ignore
+Stop tracking the selected projects and keep future scans from finding them
+again. The paths are written to
+.B scan.exclude
+in the settings file, which a running daemon picks up on its next scan. Takes
+.BR list ", " clear " and " "clear <pattern>" .
+
+.TP
 .BR init ", " i ", " scan
 Scan a directory and merge what it finds into the database. Existing entries
 keep their ID, status and note.
@@ -95,6 +103,20 @@ Show totals, a breakdown by status and the most and least recently touched
 projects.
 
 .TP
+.B completion
+Print a shell completion script for
+.BR bash ", " zsh " or " fish ,
+completing command names and tracked project names for both
+.B tracker
+and
+.BR t .
+.PP
+.nf
+eval "$(tracker completion bash)"
+tracker completion fish > ~/.config/fish/completions/tracker.fish
+.fi
+
+.TP
 .BR settings ", " s ", " config
 View or change the configuration. Takes
 .BR edit ", " path ", " get " and " set .
@@ -104,6 +126,25 @@ View or change the configuration. Takes
 Control the background scanner. Takes
 .BR start ", " stop ", " restart ", " status ", " log " and " run .
 
+.SH SHORT FORMS
+A command and one of its own actions may be written as a single word, so
+.B tracker dst
+is
+.BR "tracker daemon status" .
+
+.TP
+.BR ds ", " dst ", " dk ", " dr ", " dl
+daemon start, status, stop, restart, log
+.TP
+.BR sg ", " ss ", " se ", " sp
+settings get, set, edit, path
+.TP
+.BR fl ", " fc
+forget list, forget clear
+.PP
+Only a command and its own action fuse.
+.BR -- .
+
 .SH SELECTION
 .TP
 .B ID
@@ -112,11 +153,15 @@ Permanent global ID.
 .B TID
 Temporary ID from the current sorted view.
 .TP
-.BI id: n
+.BI i: n
 Force the permanent ID.
+.B id:
+is accepted too.
 .TP
-.BI tid: n
+.BI t: n
 Force the temporary ID.
+.B tid:
+is accepted too.
 .TP
 .BI # n
 Force the permanent ID. Shells treat a bare
@@ -135,13 +180,21 @@ Inclusive range, in either direction.
 Project n and the next x projects.
 .TP
 .B all
-Every tracked project.
+Every tracked project. Prefer this to
+.BR * ,
+which the shell expands to a directory listing before tracker sees it.
 .TP
 .B name
 Exact or partial project name.
 .TP
 .B path
-Exact or partial project path.
+Exact or partial project path. A path that exists on disk is resolved first, so
+tab completed and relative paths work.
+.PP
+.B remove
+and
+.B forget
+do nothing at all unless every selector resolved.
 
 .SH FILTERS
 .TP
@@ -156,6 +209,34 @@ Include names matching a regex.
 .TP
 .BI -r: regex
 Exclude names matching a regex.
+
+.SH ROW FORMAT
+.B display.format
+lays each row out by hand instead of using
+.B display.columns
+and the separators. The known fields are
+.BR $tid ", " $id ", " $name ", " $path ", " $status ", " $last_touched ,
+.BR $version ", " $language " and " $note .
+
+Fields are padded so the output stays aligned.
+.B $>
+aligns a field to the right and
+.BI ${ name }
+lets text follow a field immediately. Anything that is not a known field is
+printed as written.
+
+A format containing
+.B $note
+places the note itself, otherwise the usual inline or below placement is used.
+
+Quote a format with single quotes; a shell expands
+.B $name
+inside double quotes.
+.PP
+.nf
+tracker list 'display.format=$>tid. $name [$status]'
+tracker settings set display.format '${tid}) $name - $note'
+.fi
 
 .SH NOTES
 A note is printed on the same line as its project and only drops to a line of
@@ -172,6 +253,10 @@ Explain what is happening while it happens.
 .TP
 .BR --yes ", " -y ", " --force
 Do not ask for confirmation.
+.TP
+.B --
+Treat everything after it as text rather than options or commands, for a note
+that starts with a dash or contains a command name.
 .TP
 .BR --no-colour ", " --colour
 Force colour off or on.
@@ -207,6 +292,10 @@ The daemon periodically scans the directories configured under
 .B [daemon]
 in the settings file, adding new projects and archiving ones that disappeared.
 It runs detached and writes to a log file.
+
+It also re-reads the settings file whenever it changes, so
+.B scan.exclude
+and the watched paths take effect without a restart.
 
 .TP
 .B tracker daemon
