@@ -32,7 +32,7 @@ Requires Python 3.11+ and nothing else.
 | `forget`     | `ignore`          | Stop tracking and keep scans from finding it again                   |
 | `edit`       | `e`               | Change a `status` or a `note`                                        |
 | `note`       | `n`               | Set a note, without naming the field                                 |
-| `status`     | `st`              | Set a status, without naming the field                               |
+| `status`     | `st`              | List statuses, set one, or move every project from one to another    |
 | `init`       | `i`, `scan`       | Scan a directory and merge the result into the database              |
 | `path`       | `p`, `where`      | Print a project's path, e.g. `cd "$(t path tracker)"`                |
 | `stats`      | `summary`         | Totals, a breakdown by status, most and least recently touched       |
@@ -68,8 +68,10 @@ t check 12          # ID or TID 12
 t check i:12        # force the permanent ID, id:12 also works
 t check t:12        # force the temporary ID, tid:12 also works
 t check ./project   # a path, tab completion included
+t check s:blocked   # every project with that status
 t edit 3-7 status completed
 t edit 5+3 status shelf
+t edit t:3-7 status shelf
 t edit all status archived
 ```
 

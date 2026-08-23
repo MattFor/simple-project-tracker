@@ -1,13 +1,37 @@
 from typing import Any
 
-COLUMNS = ("tid", "id", "name", "path", "status", "last_touched", "version", "language")
+COLUMNS = (
+	"tid",
+	"id",
+	"name",
+	"path",
+	"status",
+	"last_touched",
+	"last_used",
+	"version",
+	"language",
+)
 
-SORT_KEYS = ("id", "name", "path", "status", "last_touched", "time")
+SORT_KEYS = (
+	"id",
+	"name",
+	"path",
+	"status",
+	"last_touched",
+	"time",
+	"last_used",
+	"used",
+)
+
 SORT_DIRECTIONS = ("ascending", "descending")
 
 NOTE_POSITIONS = ("auto", "inline", "below")
 
+RELATIVE_STYLES = ("long", "short")
+
 CONFLICT_PREFERENCES = ("starts_with", "first_match")
+
+NUMBER_PREFERENCES = ("ask", "id", "tid")
 
 
 def defaults() -> dict[str, Any]:
@@ -22,6 +46,7 @@ def defaults() -> dict[str, Any]:
 			"columns": ["tid", "id", "name", "status", "last_touched"],
 			"time_format": "%Y-%m-%d %H:%M:%S",
 			"relative_times": False,
+			"relative_style": "long",
 			"vertical_separator": " | ",
 			"horizontal_separator": "-",
 			"max_width": 0,
@@ -47,6 +72,7 @@ def defaults() -> dict[str, Any]:
 		"sorting": {
 			"by": "last_touched",
 			"direction": "descending",
+			"status_order": [],
 		},
 		"projects": {
 			"default_status": "unknown",
@@ -61,7 +87,9 @@ def defaults() -> dict[str, Any]:
 				"node_modules",
 			],
 			"conflict_resolution_preference": "starts_with",
+			"number_preference": "ask",
 			"confirm_destructive": True,
+			"track_usage": True,
 		},
 		"scan": {
 			"detect_git": True,
@@ -104,9 +132,11 @@ SECTION_TITLES = {
 
 CHOICES: dict[str, tuple[str, ...]] = {
 	"display.note_position": NOTE_POSITIONS,
+	"display.relative_style": RELATIVE_STYLES,
 	"sorting.by": SORT_KEYS,
 	"sorting.direction": SORT_DIRECTIONS,
 	"projects.conflict_resolution_preference": CONFLICT_PREFERENCES,
+	"projects.number_preference": NUMBER_PREFERENCES,
 }
 
 OPEN_TABLES = frozenset({"display.status_colours"})

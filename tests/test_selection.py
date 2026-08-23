@@ -7,6 +7,7 @@ from tests.helpers import SAMPLE, make_projects, make_settings
 from tracker.core.models import Projects, get_id, new_project, normalise
 from tracker.core.selection import (
 	filter_projects,
+	parse_filter,
 	regex_projects,
 	resolve_selection,
 	search_projects,
@@ -207,3 +208,184 @@ def test_unresolved_selectors_are_reported():
 
 	assert names(selected) == ["beta"]
 	assert unmatched == ["nonsense"]
+
+
+#
+# Statuses
+#
+
+
+def status_sample():
+	return make_projects(
+		("/code/alpha", "current", "2026-01-05 10:00:00", ""),
+		("/code/beta", "archived", "2026-02-10 10:00:00", ""),
+		("/code/gamma", "todo", "2025-12-01 10:00:00", ""),
+		("/code/delta", "archive", "2025-11-01 10:00:00", ""),
+	)
+
+
+def test_status_filters_include_and_exclude():
+	projects = status_sample()
+
+	assert names(filter_projects(projects, ["+s:todo"])) == ["gamma"]
+	assert names(filter_projects(projects, ["-s:todo"])) == ["alpha", "beta", "delta"]
+
+
+def test_a_status_filter_takes_several_values():
+	projects = status_sample()
+
+	assert names(filter_projects(projects, ["+s:current,todo"])) == ["alpha", "gamma"]
+	assert names(filter_projects(projects, ["-s:current,todo"])) == ["beta", "delta"]
+
+
+def test_a_status_matches_by_prefix_as_well():
+	projects = status_sample()
+
+	assert names(filter_projects(projects, ["+s:arch"])) == ["beta", "delta"]
+
+
+def test_command_line_filters_are_normalised():
+	assert parse_filter("s:todo") == "+s:todo"
+	assert parse_filter("!s:todo") == "-s:todo"
+	assert parse_filter("-s:todo") == "-s:todo"
+	assert parse_filter("status:todo") == "+s:todo"
+	assert parse_filter("st=todo") == "+s:todo"
+	assert parse_filter("+m:python") == "+m:python"
+	assert parse_filter("regex:^a") == "+r:^a"
+
+
+def test_ordinary_words_and_settings_are_not_filters():
+	for token in ("tracker", "20", "regex", "display.list_limit=20", "sorting.by=name"):
+		assert parse_filter(token) is None
+
+
+def test_a_status_can_select_projects():
+	projects = status_sample()
+	settings = make_settings(sorting__by="name", sorting__direction="ascending")
+
+	assert sorted(names(select_projects(projects, settings, ["s:current"]))) == ["alpha"]
+	assert sorted(names(select_projects(projects, settings, ["status:arch"]))) == [
+		"beta",
+		"delta",
+	]
+	assert sorted(names(select_projects(projects, settings, ["s:todo,current"]))) == [
+		"alpha",
+		"gamma",
+	]
+
+
+def test_an_unknown_status_selects_nothing():
+	projects = status_sample()
+	settings = make_settings()
+
+	selected, unmatched = resolve_selection(
+		projects, settings, ["s:nonsense"], quiet=True
+	)
+
+	assert not selected
+	assert unmatched == ["s:nonsense"]
+
+
+def test_sorting_by_status_follows_the_configured_order():
+	projects = status_sample()
+
+	settings = make_settings(
+		sorting__by="status",
+		sorting__direction="ascending",
+		sorting__status_order=["todo", "current"],
+	)
+
+	assert names(dict(sort_projects(projects, settings))) == [
+		"gamma",
+		"alpha",
+		"delta",
+		"beta",
+	]
+
+
+def test_sorting_by_status_is_alphabetical_without_an_order():
+	projects = status_sample()
+
+	settings = make_settings(sorting__by="status", sorting__direction="ascending")
+
+	assert names(dict(sort_projects(projects, settings))) == [
+		"delta",
+		"beta",
+		"alpha",
+		"gamma",
+	]
+
+
+#
+# Last used
+#
+
+
+def test_sorting_by_last_used_puts_the_never_used_last():
+	projects = make_projects(
+		("/code/alpha", "todo", "2026-01-01 00:00:00", ""),
+		("/code/beta", "todo", "2026-01-01 00:00:00", ""),
+		("/code/gamma", "todo", "2026-01-01 00:00:00", ""),
+	)
+
+	projects["/code/beta"]["last_used"] = "2026-03-01 00:00:00"
+	projects["/code/gamma"]["last_used"] = "2026-02-01 00:00:00"
+
+	settings = make_settings(sorting__by="last_used", sorting__direction="descending")
+
+	assert names(dict(sort_projects(projects, settings))) == ["beta", "gamma", "alpha"]
+
+
+#
+# Numbers that are both ID/TID
+#
+
+
+def clashing():
+	projects = make_projects(
+		("/code/beta", "todo", "2026-01-01 00:00:00", ""),
+		("/code/alpha", "todo", "2026-01-01 00:00:00", ""),
+	)
+
+	return projects
+
+
+def test_an_ambiguous_number_is_reported_once():
+	projects = clashing()
+	settings = make_settings(sorting__by="name", sorting__direction="ascending")
+
+	selected, unmatched = resolve_selection(projects, settings, ["1"], quiet=True)
+
+	assert not selected
+	assert unmatched == ["1"]
+
+
+def test_the_number_preference_settles_an_ambiguous_number():
+	projects = clashing()
+
+	for preference, expected in (("id", "beta"), ("tid", "alpha")):
+		settings = make_settings(
+			sorting__by="name",
+			sorting__direction="ascending",
+			projects__number_preference=preference,
+		)
+
+		assert names(select_projects(projects, settings, ["1"], quiet=True)) == [expected]
+
+
+def test_explicit_prefixes_accept_ranges():
+	projects = sample()
+	settings = make_settings(sorting__by="name", sorting__direction="descending")
+
+	assert sorted(names(select_projects(projects, settings, ["t:1-2"]))) == [
+		"beta",
+		"gamma",
+	]
+	assert sorted(names(select_projects(projects, settings, ["i:1+1"]))) == [
+		"alpha",
+		"beta",
+	]
+	assert sorted(names(select_projects(projects, settings, ["@1-2"]))) == [
+		"beta",
+		"gamma",
+	]

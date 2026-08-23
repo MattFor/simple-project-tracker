@@ -29,7 +29,14 @@ are the same.
 .SH COMMANDS
 .TP
 .BR help ", " h ", " -h
-Show help.
+Show help. With an argument, show only that section:
+.B "tracker help edit"
+or, equivalently,
+.BR "tracker edit help" .
+The argument may be a command or a topic
+.RB ( usage ", " commands ", " "short forms" ", " "project selection" ,
+.BR statuses ", " "list filters" ", " timestamps ", " "row format" ", " notes ,
+.BR options ", " configuration ", " examples ).
 
 .TP
 .BR version ", " v ", " -v
@@ -41,7 +48,11 @@ List tracked projects. Accepts a search word, a limit, a
 .B regex
 pattern, list filters and temporary setting overrides in
 .IR setting = value
-form.
+form. Status filters are written
+.BI s: status
+to keep only those and
+.BI !s: status
+to drop them, comma separated for several.
 
 .TP
 .BR check ", " c ", " cc ", " info
@@ -78,6 +89,12 @@ Set the note of the selected projects without naming the field, for example
 .BR status ", " st
 Set the status of the selected projects without naming the field, for example
 .BR "tracker 12 st blocked" .
+With no arguments it lists every status in use and how many projects hold it.
+Combined with an
+.BI s: status
+selector it moves every project from one status to another, for example
+.BR "tracker status s:blocked paused" .
+Projects that already hold the new status are counted, not rewritten.
 
 .TP
 .BR forget ", " ignore
@@ -99,8 +116,8 @@ Print the path of a project, for example
 
 .TP
 .BR stats ", " summary
-Show totals, a breakdown by status and the most and least recently touched
-projects.
+Show totals, a breakdown by status, the most and least recently touched
+projects and the one last used with tracker.
 
 .TP
 .B completion
@@ -179,6 +196,13 @@ Inclusive range, in either direction.
 .IB n + x
 Project n and the next x projects.
 .TP
+.BI s: status
+Every project holding that status, comma separated for several.
+.B st:
+and
+.B status:
+are accepted too, and a status matches exactly or by prefix.
+.TP
 .B all
 Every tracked project. Prefer this to
 .BR * ,
@@ -190,6 +214,21 @@ Exact or partial project name.
 .B path
 Exact or partial project path. A path that exists on disk is resolved first, so
 tab completed and relative paths work.
+.PP
+.B i:
+and
+.B t:
+accept ranges as well, so
+.B t:3-7
+and
+.B i:5+3
+settle a number that is both an ID and a TID. Setting
+.B projects.number_preference
+to
+.B id
+or
+.B tid
+decides every bare number instead of reporting the clash.
 .PP
 .B remove
 and
@@ -209,6 +248,68 @@ Include names matching a regex.
 .TP
 .BI -r: regex
 Exclude names matching a regex.
+.TP
+.BI +s: status
+Include a status, comma separated for several.
+.TP
+.BI -s: status
+Exclude a status, comma separated for several.
+.PP
+On the command line the leading
+.B +
+may be dropped and
+.B !
+used in place of
+.BR - ,
+and the long names
+.BR match: ", " regex: " and " status:
+work as well. A status matches exactly or by prefix, so
+.B s:arch
+finds
+.B archived
+too.
+.PP
+.B display.filter
+applies the same filters to every listing, the bare
+.B tracker
+included, so
+.B "filter = [\(dq-s:archived\(dq]"
+hides archived projects everywhere.
+
+.SH STATUSES
+A status is free text; tracker only cares about the ones you use.
+.B "tracker status"
+lists them with their counts,
+.B display.status_colours
+gives each one a colour and
+.B sorting.status_order
+sets the order
+.B "sorting.by = \(dqstatus\(dq"
+uses, with anything left out of it sorting after the rest.
+
+.SH TIMESTAMPS
+Every project carries when it was last touched on disk
+.RB ( last_touched )
+and when it was last looked at with tracker
+.RB ( last_used ).
+.BR check ", " path " and " edit
+and a bare project lookup all count as looking at one, unless
+.B projects.track_usage
+is off. Either may be sorted by and shown as a column.
+.PP
+.B display.relative_times
+prints
+.RB \(dq "2 days ago" \(dq
+in place of the timestamp and
+.B display.relative_style
+chooses how it is written:
+.B long
+gives
+.RB \(dq "8 seconds ago" \(dq
+and
+.B short
+gives
+.RB \(dq "8s ago" \(dq.
 
 .SH ROW FORMAT
 .B display.format
@@ -216,7 +317,7 @@ lays each row out by hand instead of using
 .B display.columns
 and the separators. The known fields are
 .BR $tid ", " $id ", " $name ", " $path ", " $status ", " $last_touched ,
-.BR $version ", " $language " and " $note .
+.BR $last_used ", " $version ", " $language " and " $note .
 
 Fields are padded so the output stays aligned.
 .B $>
@@ -331,6 +432,9 @@ tracker list
 tracker list tracker
 tracker list 20
 tracker list -m:archived
+tracker list s:current,todo
+tracker list display.relative_style=short
+tracker status s:blocked paused
 tracker add ~/Programming/Projects active "work in progress"
 tracker check tracker
 tracker edit 3-7 status completed

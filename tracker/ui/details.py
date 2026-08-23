@@ -3,7 +3,7 @@ from datetime import datetime
 
 from tracker.ui.ansi import C
 from tracker.core.models import Project
-from tracker.ui.render import status_colour
+from tracker.ui.render import short_times, status_colour
 from tracker.config.settings import Settings
 from tracker.core.inspect import detect_manifest, disk_usage, git_info
 from tracker.util.text import human_size, parse_time, relative_time, wrap
@@ -36,7 +36,9 @@ def _stamp(value: str, settings: Settings) -> str:
 	if moment is None:
 		return value
 
-	return f"{value}  {C.GRAY}({relative_time(moment)}){C.RESET}"
+	relative = relative_time(moment, short=short_times(settings))
+
+	return f"{value}  {C.GRAY}({relative}){C.RESET}"
 
 
 def print_details(
@@ -60,6 +62,7 @@ def print_details(
 	_field("TID", str(tid) if tid else "-")
 	_field("Status", status, status_colour(status, settings))
 	_field("Last touched", _stamp(str(project.get("last_touched", "")), settings))
+	_field("Last used", _stamp(str(project.get("last_used", "")), settings))
 	_field("First seen", _stamp(str(project.get("first_seen", "")), settings))
 
 	if project.get("archived"):
@@ -150,6 +153,7 @@ def print_details(
 				"status",
 				"note",
 				"last_touched",
+				"last_used",
 				"first_seen",
 				"deleted_at",
 				"archived",

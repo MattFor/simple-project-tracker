@@ -182,8 +182,42 @@ def expand(args: list[str]) -> list[str]:
 	return expanded
 
 
+def help_request(args: list[str]) -> list[str] | None:
+	for index, token in enumerate(args):
+		if token == LITERAL:
+			return None
+
+		name = command_of(token)
+
+		if name == "help":
+			if index:
+				for previous in reversed(args[:index]):
+					owner = command_of(previous)
+
+					if owner is not None:
+						return [owner, *args[index + 1 :]]
+
+			return args[index + 1 :]
+
+		if name in GREEDY:
+			following = index + 1
+
+			if following == len(args) - 1 and command_of(args[following]) == "help":
+				# noinspection bad-return
+				return [name]
+
+			return None
+
+	return None
+
+
 def split(args: list[str]) -> list[tuple[str, list[str]]]:
 	args = expand(args)
+
+	wanted = help_request(args)
+
+	if wanted is not None:
+		return [("help", wanted)]
 
 	literal = len(args)
 

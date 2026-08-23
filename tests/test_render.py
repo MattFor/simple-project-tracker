@@ -171,3 +171,73 @@ def test_braces_separate_a_field_from_the_text_after_it():
 	lines = rows(120, display__format="${tid}x $name", display__show_headers=False)
 
 	assert lines[0].startswith("1x ")
+
+
+def test_relative_times_can_be_shortened():
+	from datetime import datetime, timedelta
+
+	now = datetime(2026, 1, 10, 12, 0, 0)
+
+	cases = (
+		(timedelta(seconds=8), "just now", "now"),
+		(timedelta(seconds=90), "1 minute ago", "1m ago"),
+		(timedelta(minutes=8), "8 minutes ago", "8m ago"),
+		(timedelta(hours=3), "3 hours ago", "3h ago"),
+		(timedelta(days=2), "2 days ago", "2d ago"),
+		(timedelta(days=15), "2 weeks ago", "2w ago"),
+		(timedelta(days=70), "2 months ago", "2mo ago"),
+		(timedelta(days=800), "2 years ago", "2y ago"),
+	)
+
+	for gap, long, short in cases:
+		moment = now - gap
+
+		assert relative_time(moment, now) == long
+		assert relative_time(moment, now, short=True) == short
+
+
+def test_short_relative_times_keep_the_future_direction():
+	from datetime import datetime, timedelta
+
+	now = datetime(2026, 1, 10, 12, 0, 0)
+
+	assert relative_time(now + timedelta(hours=5), now, short=True) == "in 5h"
+	assert relative_time(now + timedelta(hours=5), now) == "in 5 hours"
+
+
+def test_the_relative_style_setting_reaches_the_table():
+	from datetime import datetime
+
+	stamp = datetime.now().replace(microsecond=0)
+	written = stamp.strftime("%Y-%m-%d %H:%M:%S")
+
+	projects = make_projects(("/code/alpha", "todo", written, ""))
+
+	settings = make_settings(
+		display__columns=["name", "last_touched"],
+		display__relative_times=True,
+		display__relative_style="short",
+		display__show_headers=False,
+	)
+
+	line = render_rows(projects.items(), settings, width=80)[0]
+
+	assert "now" in line and "just now" not in line
+
+
+def test_the_last_used_column_falls_back_to_never():
+	projects = make_projects(
+		("/code/alpha", "todo", "2026-01-01 00:00:00", ""),
+		("/code/beta", "todo", "2026-01-01 00:00:00", ""),
+	)
+
+	projects["/code/alpha"]["last_used"] = "2026-01-02 00:00:00"
+
+	settings = make_settings(
+		display__columns=["name", "last_used"], display__show_headers=False
+	)
+
+	lines = render_rows(projects.items(), settings, width=80)
+
+	assert "2026-01-02 00:00:00" in lines[0]
+	assert "never" in lines[1]

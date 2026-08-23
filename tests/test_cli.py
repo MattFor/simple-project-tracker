@@ -142,3 +142,57 @@ def test_fusing_never_touches_free_text():
 	assert split(["note", "5", "ds", "sp"]) == [("note", ["5", "ds", "sp"])]
 	assert split(["add", "~/code", "ds"]) == [("add", ["~/code", "ds"])]
 	assert split(["check", "--", "ds"]) == [("check", ["ds"])]
+
+
+def test_help_can_be_asked_for_before_or_after_a_command():
+	assert split(["help"]) == [("help", [])]
+	assert split(["help", "list"]) == [("help", ["list"])]
+	assert split(["list", "help"]) == [("help", ["list"])]
+	assert split(["daemon", "help"]) == [("help", ["daemon"])]
+	assert split(["settings", "set", "help"]) == [("help", ["settings"])]
+	assert split(["l", "-h"]) == [("help", ["list"])]
+
+
+def test_a_greedy_command_still_answers_a_bare_help():
+	assert split(["status", "help"]) == [("help", ["status"])]
+	assert split(["edit", "help"]) == [("help", ["edit"])]
+
+
+def test_help_inside_free_text_stays_free_text():
+	assert split(["note", "5", "help", "me"]) == [("note", ["5", "help", "me"])]
+	assert split(["note", "5", "--", "help"]) == [("note", ["5", "help"])]
+	assert split(["add", "~/code", "todo", "help"]) == [
+		("add", ["~/code", "todo", "help"])
+	]
+
+
+def test_help_takes_a_topic_that_is_not_a_command():
+	assert split(["help", "statuses"]) == [("help", ["statuses"])]
+	assert split(["help", "project", "selection"]) == [("help", ["project", "selection"])]
+
+
+def test_usage_is_only_recorded_when_it_is_turned_on():
+	from tests.helpers import SAMPLE, make_projects, make_settings
+	from tracker.cli.commands import Context, mark_used
+
+	for enabled in (True, False):
+		projects = make_projects(*SAMPLE)
+
+		context = Context(
+			settings=make_settings(projects__track_usage=enabled), data=projects
+		)
+
+		assert mark_used(context, projects, save=False) is enabled
+
+		stamped = [project for project in projects.values() if "last_used" in project]
+
+		assert bool(stamped) is enabled
+
+
+def test_nothing_selected_is_never_stamped():
+	from tests.helpers import make_settings
+	from tracker.cli.commands import Context, mark_used
+
+	context = Context(settings=make_settings(), data={})
+
+	assert mark_used(context, {}, save=False) is False

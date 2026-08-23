@@ -3,6 +3,7 @@ import re
 
 from typing import Any, Callable
 from pathlib import Path
+from collections.abc import Iterable
 
 from tracker.util.text import parse_time
 from tracker.config.settings import Settings
@@ -11,8 +12,55 @@ from tracker.core.models import Project, Projects
 
 
 #
+# Statuses
+#
+
+
+def status_of(project: Project) -> str:
+	return str(project.get("status", "") or "unknown").strip().lower()
+
+
+def status_values(value: str) -> list[str]:
+	return [piece.strip().lower() for piece in value.split(",") if piece.strip()]
+
+
+def status_matches(project: Project, wanted: Iterable[str]) -> bool:
+	status = status_of(project)
+
+	return any(status == want or status.startswith(want) for want in wanted)
+
+
+def status_counts(projects: Projects) -> dict[str, int]:
+	counts: dict[str, int] = {}
+
+	for project in projects.values():
+		status = status_of(project)
+		counts[status] = counts.get(status, 0) + 1
+
+	return counts
+
+
+#
 # Sorting
 #
+
+
+def _status_rank(settings: Settings) -> Callable[[str], tuple[int, str]]:
+	configured = settings.get("sorting.status_order", [])
+
+	order = (
+		[str(entry).strip().lower() for entry in configured]
+		if isinstance(configured, list)
+		else []
+	)
+
+	def rank(status: str) -> tuple[int, str]:
+		if not order:
+			return 0, status
+
+		return (order.index(status) if status in order else len(order)), status
+
+	return rank
 
 
 def _sort_key(settings: Settings) -> Callable[[tuple[str, Project]], tuple[Any, str]]:
@@ -22,6 +70,8 @@ def _sort_key(settings: Settings) -> Callable[[tuple[str, Project]], tuple[Any, 
 	if sort_by not in SORT_KEYS:
 		sort_by = "name"
 
+	rank = _status_rank(settings)
+
 	def key(item: tuple[str, Project]) -> tuple[Any, str]:
 		path, project = item
 
@@ -30,18 +80,23 @@ def _sort_key(settings: Settings) -> Callable[[tuple[str, Project]], tuple[Any, 
 		if sort_by == "id":
 			return project.get("id", 0), name
 
-		if sort_by == "name":
-			return name, name
-
 		if sort_by == "path":
 			return path.lower(), name
+
+		if sort_by == "status":
+			return rank(status_of(project)), name
 
 		if sort_by in ("last_touched", "time"):
 			moment = parse_time(project.get("last_touched", ""), time_format)
 
 			return (moment.timestamp() if moment else float("-inf")), name
 
-		return str(project.get(sort_by, "")).lower(), name
+		if sort_by in ("last_used", "used"):
+			moment = parse_time(project.get("last_used", ""), time_format)
+
+			return (moment.timestamp() if moment else float("-inf")), name
+
+		return name, name
 
 	return key
 
@@ -61,6 +116,39 @@ def temporary_ids(projects: Projects, settings: Settings) -> dict[str, int]:
 #
 # Filtering
 #
+
+FILTER_TYPES = ("m", "r", "s")
+
+_FILTER_NAMES = {
+	"m": "m",
+	"match": "m",
+	"name": "m",
+	"r": "r",
+	"re": "r",
+	"regex": "r",
+	"s": "s",
+	"st": "s",
+	"state": "s",
+	"status": "s",
+}
+
+_FILTER = re.compile(
+	rf"([+\-!]?)({'|'.join(sorted(_FILTER_NAMES, key=len, reverse=True))})[:=](.+)",
+	re.IGNORECASE,
+)
+
+
+def parse_filter(token: str) -> str | None:
+	match = _FILTER.fullmatch(token.strip())
+
+	if match is None:
+		return None
+
+	sign, kind, value = match.group(1), match.group(2).lower(), match.group(3)
+
+	action = "-" if sign in ("-", "!") else "+"
+
+	return f"{action}{_FILTER_NAMES[kind]}:{value}"
 
 
 def filter_projects(projects: Projects, filters: list[str]) -> Projects:
@@ -86,13 +174,16 @@ def filter_projects(projects: Projects, filters: list[str]) -> Projects:
 			print(f"[ERROR] invalid filter '{expression}', must start with + or -")
 			continue
 
-		if filter_type not in ("m", "r"):
-			print(f"[ERROR] invalid filter '{expression}', type must be m or r")
+		if filter_type not in FILTER_TYPES:
+			kinds = ", ".join(FILTER_TYPES)
+
+			print(f"[ERROR] invalid filter '{expression}', type must be {kinds}")
 			continue
 
 		if not value:
 			continue
 
+		# noinspection unused-local
 		matches: set[str] = set()
 
 		if filter_type == "m":
@@ -102,6 +193,15 @@ def filter_projects(projects: Projects, filters: list[str]) -> Projects:
 				path
 				for path in filtered
 				if needle in Path(path).name.lower() or needle in path.lower()
+			}
+
+		elif filter_type == "s":
+			wanted = status_values(value)
+
+			matches = {
+				path
+				for path, project in filtered.items()
+				if status_matches(project, wanted)
 			}
 
 		else:
@@ -149,17 +249,19 @@ def regex_projects(projects: Projects, expression: str) -> Projects | None:
 # Selecting
 #
 
+# 5 -> a single number | 5+3 -> 5 and the next 3 | 3-7 -> 3 through 7 either way
+_NUMERIC = r"\d+(?:[-+]\d+)?"
 
-# 5+3  -> project 5 and the next 3
 _RELATIVE = re.compile(r"(\d+)\+(\d+)")
-
-# 3-7  -> projects 3 through 7 inclusive (in either direction)
 _RANGE = re.compile(r"(\d+)-(\d+)")
 
 # #5 always means the permanent ID | @5 always means the temporary ID
-_EXPLICIT = re.compile(r"([#@])(\d+)")
+_EXPLICIT = re.compile(rf"([#@])({_NUMERIC})")
 
-_NAMED = re.compile(r"(tid|id|t|i)[:=](\d+)", re.IGNORECASE)
+_NAMED = re.compile(rf"(tid|id|t|i)[:=]({_NUMERIC})", re.IGNORECASE)
+
+# s:blocked, status:blocked,todo -> every project with that status
+_STATUS = re.compile(r"(status|state|st|s)[:=](.+)", re.IGNORECASE)
 
 ALL_SELECTORS = ("all", "*")
 
@@ -181,6 +283,9 @@ def resolve_selection(
 
 	preference: str = settings["projects"]["conflict_resolution_preference"]
 
+	numbers_mean: str = settings["projects"]["number_preference"]
+	fallback = numbers_mean if numbers_mean in ("id", "tid") else "any"
+
 	def report(message: str) -> None:
 		if not quiet:
 			print(message)
@@ -189,8 +294,19 @@ def resolve_selection(
 	def show(matches: list[tuple[str, Project]]) -> None:
 		from tracker.ui.render import render_rows
 
+		view = settings
+
+		# Both have to be ther to tell them apart
+		try:
+			view = view.override("display.format", "")
+			view = view.override(
+				"display.columns", ["id", "tid", "name", "status", "last_touched"]
+			)
+		except (KeyError, ValueError):
+			view = settings
+
 		for line in render_rows(
-			matches, settings, temporary_ids, show_headers=False, prefix="  "
+			matches, view, temporary_ids, show_headers=True, prefix="  "
 		):
 			report(line)
 
@@ -215,7 +331,15 @@ def resolve_selection(
 
 		return by_id or by_temporary
 
-	def select_number(number: int, source: str = "any", complain: bool = True) -> bool:
+	# True  = selected it
+	# False = found nothing
+	# None  = it was ambiguous
+	def select_number(
+		number: int,
+		source: str = "any",
+		complain: bool = True,
+		explain: bool = True,
+	) -> bool | None:
 		# noinspection shadowing-names
 		matches = find_number(number, source)
 
@@ -226,32 +350,89 @@ def resolve_selection(
 			return False
 
 		if len(matches) > 1:
-			report(f"[ERROR] '{number}' is both an ID and a TID:")
-			show(matches)
-			report(f"        use i:{number} for the ID or t:{number} for the TID")
+			if explain:
+				report(f"[ERROR] '{number}' is both an ID and a TID:")
+				show(matches)
+				report(f"        use i:{number} for the ID or t:{number} for the TID")
 
-			return False
+			return None
 
 		selected[matches[0][0]] = matches[0][1]
 
 		return True
 
 	# noinspection shadowing-names
-	def select_range(start: int, end: int) -> bool:
+	def select_range(start: int, end: int, source: str = "any") -> bool | None:
 		step = 1 if end >= start else -1
 
 		found = False
+		ambiguous: list[int] = []
 
 		for number in range(start, end + step, step):
 			if number < 1:
 				continue
 
-			found = select_number(number, complain=False) or found
+			outcome = select_number(number, source, complain=False, explain=False)
+
+			if outcome is None:
+				ambiguous.append(number)
+				continue
+
+			found = outcome or found
+
+		if ambiguous:
+			numbers = ", ".join(str(number) for number in ambiguous)
+			verb = "are" if len(ambiguous) > 1 else "is"
+			span = f"{start}-{end}"
+
+			report(f"[ERROR] {numbers} {verb} both an ID and a TID")
+			report(f"        use i:{span} for the IDs or t:{span} for the TIDs")
+
+			return None
 
 		if not found:
 			report(f"[ERROR] no projects in the range '{start}-{end}'")
 
 		return found
+
+	def select_numeric(text: str, source: str) -> bool | None:
+		relative = _RELATIVE.fullmatch(text)
+
+		if relative:
+			start = int(relative.group(1))
+
+			return select_range(start, start + int(relative.group(2)), source)
+
+		span = _RANGE.fullmatch(text)
+
+		if span:
+			return select_range(int(span.group(1)), int(span.group(2)), source)
+
+		return select_number(int(text), source)
+
+	# noinspection shadowing-names
+	def select_status(value: str) -> bool:
+		wanted = status_values(value)
+
+		matched = {
+			path: project
+			for path, project in projects.items()
+			if status_matches(project, wanted)
+		}
+
+		if not matched:
+			report(f"[ERROR] no project has the status '{value}'")
+
+			known = sorted(status_counts(projects))
+
+			if known:
+				report(f"        known statuses: {', '.join(known)}")
+
+			return False
+
+		selected.update(matched)
+
+		return True
 
 	# noinspection shadowing-names
 	def on_disk(selector: str) -> str | None:
@@ -350,29 +531,31 @@ def resolve_selection(
 		if explicit:
 			source = "id" if explicit.group(1) == "#" else "tid"
 
-			return select_number(int(explicit.group(2)), source)
+			return select_numeric(explicit.group(2), source) is True
 
 		named = _NAMED.fullmatch(selector)
 
 		if named:
 			source = "tid" if named.group(1).lower() in ("t", "tid") else "id"
 
-			return select_number(int(named.group(2)), source)
+			return select_numeric(named.group(2), source) is True
 
-		relative = _RELATIVE.fullmatch(selector)
+		status = _STATUS.fullmatch(selector)
 
-		if relative:
-			start = int(relative.group(1))
+		if status:
+			return select_status(status.group(2))
 
-			return select_range(start, start + int(relative.group(2)))
-
-		span = _RANGE.fullmatch(selector)
-
-		if span:
-			return select_range(int(span.group(1)), int(span.group(2)))
+		if _RELATIVE.fullmatch(selector) or _RANGE.fullmatch(selector):
+			return select_numeric(selector, fallback) is True
 
 		if selector.isdigit():
-			if select_number(int(selector), complain=False):
+			outcome = select_number(int(selector), fallback, complain=False)
+
+			# Ambiguity has already been explained
+			if outcome is None:
+				return False
+
+			if outcome:
 				return True
 
 			if select_named(selector, complain=False):

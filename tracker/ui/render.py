@@ -28,6 +28,7 @@ HEADERS = {
 	"path": "PATH",
 	"status": "STATUS",
 	"last_touched": "LAST TOUCHED",
+	"last_used": "LAST USED",
 	"version": "VERSION",
 	"language": "LANG",
 }
@@ -149,13 +150,20 @@ def status_colour(status: str, settings: Settings) -> str:
 	return str(table.get(status.lower(), ""))
 
 
+def short_times(settings: Settings) -> bool:
+	return str(settings.get("display.relative_style", "long")).lower() == "short"
+
+
 def timestamp(value: str, settings: Settings) -> str:
 	if not settings["display"]["relative_times"]:
 		return value
 
 	moment = parse_time(value, settings["display"]["time_format"])
 
-	return relative_time(moment) if moment else value
+	if moment is None:
+		return value
+
+	return relative_time(moment, short=short_times(settings))
 
 
 def cell(path: str, project: Project, column: str, settings: Settings, tid: int) -> str:
@@ -180,6 +188,9 @@ def cell(path: str, project: Project, column: str, settings: Settings, tid: int)
 	if column == "last_touched":
 		return timestamp(str(project.get("last_touched", "unknown")), settings)
 
+	if column == "last_used":
+		return timestamp(str(project.get("last_used", "") or "never"), settings)
+
 	if column == "note":
 		return flatten(note_of(project))
 
@@ -201,7 +212,7 @@ def colourise(value: str, column: str, project: Project, settings: Settings) -> 
 	if column == "status":
 		return C.paint(value, status_colour(str(project.get("status", "")), settings))
 
-	if column in ("path", "last_touched", "id", "tid"):
+	if column in ("path", "last_touched", "last_used", "id", "tid"):
 		return f"{C.GRAY}{value}{C.RESET}" if C.enabled else value
 
 	return value
@@ -260,7 +271,10 @@ def render_rows(
 		(
 			path,
 			project,
-			[cell(path, project, field, settings, temporary_ids.get(path, 0)) for field in fields],
+			[
+				cell(path, project, field, settings, temporary_ids.get(path, 0))
+				for field in fields
+			],
 		)
 		for path, project in items
 	]
@@ -357,7 +371,6 @@ def render_rows(
 			lines.append(prefix + f"{C.GRAY}{rule.rstrip()}{C.RESET}")
 
 	for path, project, values in rows:
-
 		# noinspection shadowing-names,default-argument
 		def paint(value: str, index: int, project: Project = project) -> str:
 			shown = pad(value, widths[index], aligns[index] == ">")

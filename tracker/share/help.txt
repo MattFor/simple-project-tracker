@@ -9,7 +9,23 @@
 
 {BOLD}Commands:{RESET}
    {YELLOW}help{RESET}, {GRAY}h, -h, --help{RESET}
-      Show this help message.
+      Show this help message, or the section for one command or topic.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}tracker help{RESET}
+         {GREEN}tracker help <command>{RESET}
+         {GREEN}tracker help <topic>{RESET}
+         {GREEN}tracker <command> help{RESET}
+
+      {GRAY}Examples:{RESET}
+         {GREEN}tracker help edit{RESET}
+         {GREEN}tracker list help{RESET}
+         {GREEN}tracker daemon help{RESET}
+         {GREEN}tracker help statuses{RESET}
+         {GREEN}tracker help selection{RESET}
+
+      {GRAY}Topics: usage, commands, short forms, project selection, statuses,{RESET}
+      {GRAY}list filters, timestamps, row format, notes, options, configuration.{RESET}
 
    {YELLOW}version{RESET}, {GRAY}v, -v, --version{RESET}
       Show the program version.
@@ -23,6 +39,7 @@
          {GREEN}tracker list <number>{RESET}
          {GREEN}tracker list regex <pattern>{RESET}
          {GREEN}tracker list <filter>{RESET}
+         {GREEN}tracker list s:<status>{RESET}
          {GREEN}tracker list <setting>=<value> ...{RESET}
 
       {GRAY}Examples:{RESET}
@@ -31,10 +48,13 @@
          {GREEN}tracker list 0{RESET}                        {GRAY}no limit{RESET}
          {GREEN}tracker list regex "^relaxy-"{RESET}
          {GREEN}tracker list -m:archived{RESET}
+         {GREEN}tracker list s:current,todo{RESET}           {GRAY}only these statuses{RESET}
+         {GREEN}tracker list '!s:archived'{RESET}            {GRAY}everything else{RESET}
+         {GREEN}tracker list sorting.by=status{RESET}
          {GREEN}tracker list display.list_limit=20{RESET}
          {GREEN}tracker list sorting.by=time sorting.direction=descending{RESET}
 
-      {GRAY}Multiple setting overrides may be used at once.{RESET}
+      {GRAY}Multiple setting overrides and filters may be used at once.{RESET}
 
    {YELLOW}check{RESET}, {GRAY}c, cc, info{RESET}
       Show everything known about a project.
@@ -99,15 +119,22 @@
          {GREEN}tracker tracker n ""{RESET}                {GRAY}clear it{RESET}
 
    {YELLOW}status{RESET}, {GRAY}st{RESET}
-      Set a project's status without naming the field.
+      Set a project's status without naming the field, or list the statuses in use.
 
       {GRAY}Usage:{RESET}
+         {GREEN}tracker status{RESET}
          {GREEN}tracker status <selection> <value>{RESET}
          {GREEN}tracker <selection> status <value>{RESET}
+         {GREEN}tracker status s:<old> <new>{RESET}
 
       {GRAY}Examples:{RESET}
+         {GREEN}tracker status{RESET}                        {GRAY}every status and its count{RESET}
          {GREEN}tracker status 12 blocked{RESET}
          {GREEN}tracker tracker st current{RESET}
+         {GREEN}tracker status s:blocked paused{RESET}       {GRAY}move every blocked project{RESET}
+         {GREEN}tracker status s:todo,planned active{RESET}
+
+      {GRAY}Projects that already hold the new status are counted, not rewritten.{RESET}
 
    {YELLOW}forget{RESET}, {GRAY}ignore{RESET}
       Stop tracking projects and keep scans from finding them again.
@@ -137,7 +164,7 @@
          {GREEN}cd "$(tracker path tracker)"{RESET}
 
    {YELLOW}stats{RESET}, {GRAY}stat, summary{RESET}
-      Show how many projects are tracked, how they are split by status and which ones were touched most and least recently.
+      Show how many projects are tracked, how they are split by status, which ones were touched most and least recently, and which one you last used.
 
    {YELLOW}completion{RESET}
       Print a shell completion script for command and project names.
@@ -200,8 +227,13 @@
    {GREEN}n-x{RESET}            Inclusive range, in either direction
    {GREEN}n+x{RESET}            n and the next x projects
    {GREEN}all{RESET}            Every tracked project
+   {GREEN}s:status{RESET}       Every project holding that status {GRAY}(st:, status: too){RESET}
+   {GREEN}s:a,b{RESET}          Every project holding any of them
    {GREEN}name{RESET}           Exact or partial project name
    {GREEN}path{RESET}           Exact or partial project path, tab completion included
+
+   {GRAY}i: and t: accept ranges too, {GREEN}t:3-7{GRAY} and {GREEN}i:5+3{GRAY} settle a number that is both.{RESET}
+   {GRAY}Set {GREEN}projects.number_preference{GRAY} to id or tid to stop being asked at all.{RESET}
 
 {GRAY}Ambiguous partial matches are resolved according to projects.conflict_resolution_preference.{RESET}
 
@@ -214,14 +246,78 @@
    {GREEN}-m:<value>{RESET}   Exclude partial name/path matches.
    {GREEN}+r:<regex>{RESET}   Include names matching a regex.
    {GREEN}-r:<regex>{RESET}   Exclude names matching a regex.
+   {GREEN}+s:<status>{RESET}  Include a status, comma separated for several.
+   {GREEN}-s:<status>{RESET}  Exclude a status, comma separated for several.
+
+   {GRAY}On the command line the leading {GREEN}+{GRAY} may be dropped and {GREEN}!{GRAY} used for {GREEN}-{GRAY},{RESET}
+   {GRAY}and the long names work as well: {GREEN}s: st: status: m: match: r: regex:{RESET}
+
+   {GRAY}A status matches exactly or by prefix, so {GREEN}s:arch{GRAY} finds archived too.{RESET}
+
+   {GRAY}Examples:{RESET}
+      {GREEN}tracker list s:current{RESET}
+      {GREEN}tracker list '!s:archived,deleted'{RESET}
+      {GREEN}filter = ["+m:python", "-m:test", "+r:^relaxy-"]{RESET}
+      {GREEN}filter = ["-s:archived"]{RESET}          {GRAY}bare {GREEN}tracker{GRAY} hides them for good{RESET}
+
+   {GRAY}display.filter applies to every listing, the bare {GREEN}tracker{GRAY} included.{RESET}
+
+{BOLD}Statuses:{RESET}
+   {GRAY}A status is free text, tracker only cares about the ones you use.{RESET}
+
+   {GREEN}tracker status{RESET}                    {GRAY}every status in use and its count{RESET}
+   {GREEN}tracker status <selection> <new>{RESET}  {GRAY}set one{RESET}
+   {GREEN}tracker status s:<old> <new>{RESET}      {GRAY}move every project from one to another{RESET}
+
+   {GRAY}Anything that takes a project takes {GREEN}s:<status>{GRAY} as well:{RESET}
+
+      {GREEN}tracker check s:blocked{RESET}
+      {GREEN}tracker remove s:deleted{RESET}
+      {GREEN}tracker note s:todo -- picked up again{RESET}
+
+   {GRAY}Listing:{RESET}
+      {GREEN}tracker list s:current,todo{RESET}    {GRAY}only these{RESET}
+      {GREEN}tracker list '!s:archived'{RESET}     {GRAY}everything else{RESET}
+      {GREEN}tracker list sorting.by=status{RESET}
+
+   {GRAY}Configuration:{RESET}
+      {GREEN}display.filter{RESET}          applies to every listing, the bare {GREEN}tracker{RESET} included
+      {GREEN}display.status_colours{RESET}  a colour per status, add your own
+      {GREEN}sorting.status_order{RESET}    the order {GREEN}sorting.by = "status"{RESET} uses
 
    {GRAY}Example:{RESET}
-      {GREEN}filter = ["+m:python", "-m:test", "+r:^relaxy-"]{RESET}
+      {GREEN}filter = ["-s:archived"]{RESET}
+      {GREEN}status_order = ["current", "todo", "blocked", "shelf", "archived"]{RESET}
+
+   {GRAY}Statuses left out of status_order sort after the ones in it.{RESET}
+   {GRAY}A status matches exactly or by prefix, so {GREEN}s:arch{GRAY} finds archived too.{RESET}
+
+{BOLD}Timestamps:{RESET}
+   {GRAY}Every project carries when it was last touched on disk, and when you last{RESET}
+   {GRAY}looked at it with tracker.{RESET}
+
+      {GREEN}display.relative_times{RESET}   "2 days ago" instead of the timestamp
+      {GREEN}display.relative_style{RESET}   long {GRAY}(default){RESET}, short
+      {GREEN}display.time_format{RESET}      how a stored timestamp is written
+
+   {GRAY}long{RESET}    8 seconds ago, 3 minutes ago, 1 day ago, just now
+   {GRAY}short{RESET}   8s ago, 3m ago, 1d ago, now
+
+   {GRAY}Sorting by either one:{RESET}
+      {GREEN}sorting.by = "last_touched"{RESET}   {GRAY}changed on disk{RESET}
+      {GREEN}sorting.by = "last_used"{RESET}      {GRAY}last looked at with tracker{RESET}
+
+   {GRAY}check, path and the bare project lookup all count as looking at it, as does{RESET}
+   {GRAY}editing one. Turn it off with {GREEN}projects.track_usage = false{GRAY}.{RESET}
+
+   {GRAY}Both are columns too:{RESET}
+      {GREEN}columns = ["tid", "name", "status", "last_touched", "last_used"]{RESET}
+      {GREEN}tracker list display.relative_style=short{RESET}
 
 {BOLD}Row format:{RESET}
    {GRAY}display.format lays each row out instead of using columns.{RESET}
 
-   {GREEN}$tid $id $name $path $status $last_touched $version $language $note{RESET}
+   {GREEN}$tid $id $name $path $status $last_touched $last_used $version $language $note{RESET}
 
    {GRAY}Fields are padded; output stays aligned. $> aligns a field to the{RESET}
    {GRAY}right, ${RESET}{GREEN}{name}{RESET}{GRAY} lets text follow a field immediately.{RESET}
@@ -269,6 +365,14 @@
       {GREEN}~/.local/share/tracker/data.pkl{RESET}      database
       {GREEN}~/.local/state/tracker/{RESET}              daemon pid and log
 
+   {GRAY}Worth knowing about:{RESET}
+      {GREEN}display.relative_style{RESET}       long or short relative times
+      {GREEN}display.filter{RESET}               filters every listing, statuses included
+      {GREEN}sorting.by{RESET}                   id, name, path, status, last_touched, last_used
+      {GREEN}sorting.status_order{RESET}         the order sorting.by = "status" uses
+      {GREEN}projects.number_preference{RESET}   ask, id or tid for a bare number
+      {GREEN}projects.track_usage{RESET}         remember when you last used a project
+
    {GRAY}Settings can be overridden for a single command:{RESET}
       {GREEN}tracker list display.list_limit=20{RESET}
       {GREEN}tracker list sorting.by=name output.compact=true{RESET}
@@ -288,6 +392,9 @@
    {GREEN}tracker edit 3-7 status completed{RESET}
    {GREEN}tracker id:12 note review sunday{RESET}
    {GREEN}tracker tracker st current{RESET}
+   {GREEN}tracker status s:blocked paused{RESET}
+   {GREEN}tracker list s:current,todo{RESET}
+   {GREEN}tracker list display.relative_style=short{RESET}
    {GREEN}tracker remove tracker{RESET}
    {GREEN}tracker init ~/Programming{RESET}
    {GREEN}tracker stats{RESET}

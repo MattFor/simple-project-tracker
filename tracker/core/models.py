@@ -11,6 +11,7 @@ class Project(TypedDict):
 	note: NotRequired[str]
 
 	first_seen: NotRequired[str]
+	last_used: NotRequired[str]
 	deleted_at: NotRequired[str]
 
 	archived: NotRequired[bool]

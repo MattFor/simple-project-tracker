@@ -21,13 +21,27 @@ from tracker.core.discovery import (
 )
 
 from tracker.ui.ansi import C
-from tracker.ui.help import print_help
 from tracker.ui.details import print_details
+from tracker.ui.help import print_help, print_topic
 from tracker.core.storage import data_path, save_data
 from tracker.util.text import parse_time, relative_time
 from tracker.core.models import Projects, get_id, new_project
-from tracker.ui.render import format_project, print_projects, render_rows
-from tracker.core.selection import resolve_selection, select_projects, temporary_ids
+from tracker.ui.render import (
+	format_project,
+	print_projects,
+	render_rows,
+	short_times,
+	status_colour,
+)
+
+from tracker.core.selection import (
+	parse_filter,
+	resolve_selection,
+	select_projects,
+	sort_projects,
+	status_counts,
+	temporary_ids,
+)
 
 
 @dataclass
@@ -47,6 +61,18 @@ class Context:
 
 	def temporary_ids(self) -> dict[str, int]:
 		return temporary_ids(self.data, self.settings)
+
+
+def mark_used(context: Context, selected: Projects, *, save: bool = True) -> bool:
+	if not selected or not context.settings["projects"]["track_usage"]:
+		return False
+
+	stamp = time.strftime(context.settings["display"]["time_format"])
+
+	for project in selected.values():
+		project["last_used"] = stamp
+
+	return context.save() if save else True
 
 
 def missing_project(command: str) -> int:
@@ -80,7 +106,12 @@ def select_all_or_nothing(
 	selected, unmatched = resolve_selection(context.data, context.settings, args)
 
 	if unmatched:
-		print(f"[ERROR] {command} did nothing, unresolved: {', '.join(unmatched)}")
+		# Do not repeat a second error
+		if len(args) > 1:
+			print(f"[ERROR] {command} did nothing, unresolved: {', '.join(unmatched)}")
+		else:
+			print(f"{C.GRAY}        {command} did nothing{C.RESET}")
+
 		return None
 
 	return selected or None
@@ -125,9 +156,13 @@ def command_version(context: Context, args: list[str]) -> int:
 
 
 def command_help(context: Context, args: list[str]) -> int:
-	del context, args
+	del context
+
+	if args:
+		return print_topic(metadata, " ".join(args))
 
 	print_help(metadata)
+
 	return 0
 
 
@@ -145,6 +180,13 @@ def command_list(context: Context, args: list[str]) -> int:
 	while index < len(args):
 		token = args[index]
 		stripped = token.lstrip("-")
+
+		filtered = parse_filter(token)
+
+		if filtered is not None:
+			options["filters"].append(filtered)
+			index += 1
+			continue
 
 		if "=" in stripped and not stripped.startswith(("+", "-")):
 			key, _, raw = stripped.partition("=")
@@ -176,11 +218,6 @@ def command_list(context: Context, args: list[str]) -> int:
 
 			options["regex"] = args[index + 1]
 			index += 2
-			continue
-
-		if len(token) > 3 and token[0] in "+-" and token[2] == ":":
-			options["filters"].append(token)
-			index += 1
 			continue
 
 		options["search"] = token
@@ -217,6 +254,8 @@ def command_check(context: Context, args: list[str]) -> int:
 			verbose=context.verbose,
 		)
 
+	_ = mark_used(context, selected)
+
 	return 0
 
 
@@ -235,6 +274,8 @@ def command_show(context: Context, args: list[str]) -> int:
 	):
 		print(line)
 
+	_ = mark_used(context, selected)
+
 	return 0
 
 
@@ -250,6 +291,8 @@ def command_path(context: Context, args: list[str]) -> int:
 	for path in selected:
 		print(path)
 
+	_ = mark_used(context, selected)
+
 	return 0
 
 
@@ -264,12 +307,9 @@ def command_stats(context: Context, args: list[str]) -> int:
 
 	settings = context.settings
 	time_format: str = settings["display"]["time_format"]
+	short = short_times(settings)
 
-	statuses: dict[str, int] = {}
-
-	for project in data.values():
-		status = str(project.get("status", "unknown"))
-		statuses[status] = statuses.get(status, 0) + 1
+	statuses = status_counts(data)
 
 	archived = sum(1 for project in data.values() if project.get("archived"))
 	missing = sum(1 for path in data if not Path(path).is_dir())
@@ -286,26 +326,39 @@ def command_stats(context: Context, args: list[str]) -> int:
 	print(f"\n{C.BOLD}By status{C.RESET}")
 
 	for status, count in sorted(statuses.items(), key=lambda item: (-item[1], item[0])):
-		print(f"  {status.ljust(14)}{count}")
+		painted = C.paint(status.ljust(14), status_colour(status, settings))
+		print(f"  {painted}{count}")
 
-	dated = [
-		(parse_time(str(project.get("last_touched", "")), time_format), path)
-		for path, project in data.items()
-	]
+	# noinspection shadowing-names
+	def stamps(field_name: str) -> list[tuple[Any, str]]:
+		found = [
+			(parse_time(str(project.get(field_name, "")), time_format), path)
+			for path, project in data.items()
+		]
 
-	dated = [(moment, path) for moment, path in dated if moment is not None]
+		return [(moment, path) for moment, path in found if moment is not None]
+
+	# noinspection shadowing-names
+	def line(label: str, entry: tuple[Any, str]) -> None:
+		when = relative_time(entry[0], short=short)
+
+		print(f"  {label.ljust(14)}{Path(entry[1]).name} ({when})")
+
+	dated = stamps("last_touched")
 
 	if dated:
-		newest = max(dated)
-		oldest = min(dated)
-
 		print(f"\n{C.BOLD}Activity{C.RESET}")
-		print(
-			f"  {'newest'.ljust(14)}{Path(newest[1]).name} ({relative_time(newest[0])})"
-		)
-		print(
-			f"  {'oldest'.ljust(14)}{Path(oldest[1]).name} ({relative_time(oldest[0])})"
-		)
+
+		line("newest", max(dated))
+		line("oldest", min(dated))
+
+	used = stamps("last_used")
+
+	if used:
+		print(f"\n{C.BOLD}Used with tracker{C.RESET}")
+
+		line("last", max(used))
+		print(f"  {'tracked'.ljust(14)}{len(used)} of {len(data)}")
 
 	print(f"\n{C.GRAY}database: {data_path(settings)}{C.RESET}")
 
@@ -351,7 +404,9 @@ def command_add(context: Context, args: list[str]) -> int:
 		if project_path in data:
 			print("[ERROR] this project is already tracked")
 			print(
-				format_project(project_path, data[project_path], settings, context.temporary_ids())
+				format_project(
+					project_path, data[project_path], settings, context.temporary_ids()
+				)
 			)
 			return 1
 
@@ -513,7 +568,9 @@ def command_remove(context: Context, args: list[str]) -> int:
 		print("cancelled")
 		return 1
 
-	lines = render_rows(selected.items(), settings, temporary_ids, show_headers=False, prefix="  ")
+	lines = render_rows(
+		selected.items(), settings, temporary_ids, show_headers=False, prefix="  "
+	)
 
 	for project_path in selected:
 		del data[project_path]
@@ -557,8 +614,10 @@ def command_edit(context: Context, args: list[str]) -> int:
 	if not selected:
 		return 1
 
+	used = mark_used(context, selected, save=False)
+
 	changes: dict[str, tuple[str, str]] = {}
-	touched = 0
+	changed: Projects = {}
 	index = 1
 
 	while index < len(args):
@@ -581,31 +640,45 @@ def command_edit(context: Context, args: list[str]) -> int:
 			value = args[index + 1]
 			index += 2
 
-		for project in selected.values():
+		for path, project in selected.items():
 			old = str(project.get(field_name, ""))
 
 			if old != value:
 				project[field_name] = value
-				touched += 1
+				changed[path] = project
 
 				if len(selected) == 1:
 					changes[field_name] = (old, value)
 
 	if len(selected) > 1:
-		if not touched:
-			print("nothing changed")
-			return 0
+		if not changed:
+			print(f"nothing changed, all {len(selected)} already matched")
+
+			return 1 if used and not context.save() else 0
 
 		if not context.save():
 			return 1
 
-		print(f"edited {len(selected)} projects")
+		untouched = len(selected) - len(changed)
+		skipped = f", {untouched} already matched" if untouched else ""
+
+		print(f"edited {len(changed)} project{'s' if len(changed) != 1 else ''}{skipped}")
+
+		for line in render_rows(
+			sort_projects(changed, settings),
+			settings,
+			context.temporary_ids(),
+			show_headers=False,
+			prefix="  ",
+		):
+			print(line)
 
 		return 0
 
 	if not changes:
 		print("nothing changed")
-		return 0
+
+		return 1 if used and not context.save() else 0
 
 	if not context.save():
 		return 1
@@ -637,7 +710,41 @@ def command_note(context: Context, args: list[str]) -> int:
 	return edit_field(context, args, "note")
 
 
+def list_statuses(context: Context) -> int:
+	settings = context.settings
+	counts = status_counts(context.data)
+
+	if not counts:
+		print("no projects tracked yet")
+		return 0
+
+	configured = settings.get("display.status_colours", {})
+	known = set(configured) if isinstance(configured, dict) else set()
+
+	print(f"{C.BOLD}Statuses in use{C.RESET}")
+
+	for status, count in sorted(counts.items(), key=lambda item: (-item[1], item[0])):
+		print(f"  {C.paint(status.ljust(16), status_colour(status, settings))}{count}")
+
+	unused = sorted(known - set(counts))
+
+	if unused:
+		print(f"\n{C.BOLD}Configured but unused{C.RESET}")
+		print(f"  {C.GRAY}{', '.join(unused)}{C.RESET}")
+
+	print(f"\n{C.GRAY}t list s:<status>{' ' * 8}only those projects{C.RESET}")
+	print(f"{C.GRAY}t list !s:<status>{' ' * 7}everything else{C.RESET}")
+	print(
+		f"{C.GRAY}t status s:<old> <new>{' ' * 3}move every project from one to another{C.RESET}"
+	)
+
+	return 0
+
+
 def command_status(context: Context, args: list[str]) -> int:
+	if not args:
+		return list_statuses(context)
+
 	return edit_field(context, args, "status")
 
 
@@ -730,7 +837,11 @@ def command_forget(context: Context, args: list[str]) -> int:
 		return 1
 
 	lines = render_rows(
-		selected.items(), settings, context.temporary_ids(), show_headers=False, prefix="  "
+		selected.items(),
+		settings,
+		context.temporary_ids(),
+		show_headers=False,
+		prefix="  ",
 	)
 
 	for project_path in selected:
@@ -766,6 +877,11 @@ def _completion_words(context: Context, prefix: str) -> None:
 
 	for path in context.data:
 		candidates.add(Path(path).name)
+
+	for status in status_counts(context.data):
+		candidates.add(status)
+		candidates.add(f"s:{status}")
+		candidates.add(f"!s:{status}")
 
 	lowered = prefix.lower()
 

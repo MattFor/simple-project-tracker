@@ -4,9 +4,9 @@ from pathlib import Path
 
 from tests.helpers import make_settings
 
-from tracker.config.settings import Settings, coerce, parse_setting_value
 from tracker.config.defaults import defaults
 from tracker.config.writer import serialise, write_setting
+from tracker.config.settings import Settings, coerce, parse_setting_value
 
 
 def test_partial_configuration_falls_back_to_defaults():
@@ -119,3 +119,33 @@ def test_serialise_round_trips():
 	assert serialise(7) == "7"
 	assert serialise(["a", "b"]) == '["a", "b"]'
 	assert serialise('say "hi"') == '"say \\"hi\\""'
+
+
+def test_new_settings_are_known_and_validated():
+	from tracker.config.settings import Settings
+
+	settings = Settings.merged({})
+
+	assert settings.get("display.relative_style") == "long"
+	assert settings.get("sorting.status_order") == []
+	assert settings.get("projects.number_preference") == "ask"
+	assert settings.get("projects.track_usage") is True
+
+	assert (
+		settings.override("display.relative_style", "short").get("display.relative_style")
+		== "short"
+	)
+
+	assert settings.override("sorting.by", "last_used").get("sorting.by") == "last_used"
+
+	for key, value in (
+		("display.relative_style", "medium"),
+		("projects.number_preference", "maybe"),
+		("sorting.by", "colour"),
+	):
+		try:
+			_ = settings.override(key, value)
+		except ValueError:
+			continue
+
+		raise AssertionError(f"{key} accepted {value}")

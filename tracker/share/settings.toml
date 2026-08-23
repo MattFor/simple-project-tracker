@@ -32,7 +32,12 @@ time_format = "%Y-%m-%d %H:%M:%S"
 # Show "2 days ago" instead of the timestamp.
 relative_times = false
 
-# id / tid / name / path / status / last_touched / version / language
+# How a relative time is written.
+# long  = 8 seconds ago, 3 minutes ago, 1 day ago, just now
+# short = 8s ago, 3m ago, 1d ago, now
+relative_style = "long"
+
+# id / tid / name / path / status / last_touched / last_used / version / language
 columns = ["tid", "id", "name", "status", "last_touched"]
 
 vertical_separator = " | "
@@ -41,10 +46,17 @@ horizontal_separator = "-"
 # Widest line to print, 0 follows the terminal.
 max_width = 0
 
-# +m:value = include partial name/path matches
-# -m:value = exclude partial name/path matches
-# +r:regex = include regex name matches
-# -r:regex = exclude regex name matches
+# Applies to every listing, the bare `tracker` included.
+#
+# +m:value  = include partial name/path matches
+# -m:value  = exclude partial name/path matches
+# +r:regex  = include regex name matches
+# -r:regex  = exclude regex name matches
+# +s:status = include a status, comma separated for several
+# -s:status = exclude a status, comma separated for several
+#
+# filter = ["-s:archived"]        hide archived projects everywhere
+# filter = ["+s:current,dev"]    show only what is being worked on
 filter = []
 
 # Colour per status. (You can add some here)
@@ -68,11 +80,20 @@ unknown = "gray"
 
 
 [sorting]
-# id / name / path / status / last_touched / time
+# id / name / path / status / last_touched / last_used
+#
+# last_touched = when the files changed on disk
+# last_used    = when tracker last touched this
 by = "last_touched"
 
 # ascending / descending
 direction = "descending"
+
+# The order `by = "status"` uses. Statuses left out of it sort after the rest.
+# Empty sorts them alphabetically.
+#
+# status_order = ["current", "todo", "blocked", "shelf", "archived"]
+status_order = []
 
 
 [projects]
@@ -96,6 +117,17 @@ ignore = [
 #
 # TODO: zoxide score - top / bottom
 conflict_resolution_preference = "starts_with"
+
+# What a bare number means when it is both an ID and a TID.
+#
+# ask = report the clash and let you pick with i: or t:
+# id  = always the permanent ID
+# tid = always the temporary ID from the current view
+number_preference = "ask"
+
+# Remember when a project was last looked at with tracker, for sorting.by =
+# "last_used". check, path, edit and a bare project lookup all count.
+track_usage = true
 
 # Ask before removing several projects at once.
 confirm_destructive = true

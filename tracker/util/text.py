@@ -84,7 +84,20 @@ def human_size(size: int) -> str:
 	return f"{value:.1f} TiB"
 
 
-def relative_time(moment: datetime, now: datetime | None = None) -> str:
+SHORT_UNITS = {
+	"second": "s",
+	"minute": "m",
+	"hour": "h",
+	"day": "d",
+	"week": "w",
+	"month": "mo",
+	"year": "y",
+}
+
+
+def relative_time(
+	moment: datetime, now: datetime | None = None, *, short: bool = False
+) -> str:
 	now = now or datetime.now()
 
 	seconds = (now - moment).total_seconds()
@@ -117,7 +130,12 @@ def relative_time(moment: datetime, now: datetime | None = None) -> str:
 	amount = int(value)
 
 	if unit == "second" and amount < 45:
-		return "just now"
+		return "now" if short else "just now"
+
+	if short:
+		suffix = SHORT_UNITS[unit]
+
+		return f"in {amount}{suffix}" if future else f"{amount}{suffix} ago"
 
 	plural = "" if amount == 1 else "s"
 
