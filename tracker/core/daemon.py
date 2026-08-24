@@ -82,7 +82,9 @@ def is_running(pid: int) -> bool:
 	return True
 
 
-def write_pid(pid: int, settings: Settings, watched: list[str]) -> None:
+def write_pid(
+	pid: int, settings: Settings, watched: list[str], started: str = ""
+) -> None:
 	pid_file = paths.daemon_pid_file()
 
 	state = {
@@ -90,7 +92,7 @@ def write_pid(pid: int, settings: Settings, watched: list[str]) -> None:
 		"settings": str(settings.path),
 		"database": str(data_path(settings)),
 		"watching": watched,
-		"started": time.strftime("%Y-%m-%d %H:%M:%S"),
+		"started": started or time.strftime("%Y-%m-%d %H:%M:%S"),
 	}
 
 	try:
@@ -474,13 +476,30 @@ def _stamp(path: Path) -> float:
 		return 0.0
 
 
-def reload_settings(settings: Settings, stamp: float) -> tuple[Settings, float]:
-	current = _stamp(settings.path)
+def _settings_source(settings: Settings) -> Path:
+	source = settings.path
 
-	if current == stamp:
+	if source.is_file():
+		return source
+
+	relocated = paths.settings_file()
+
+	if relocated != source and relocated.is_file():
+		print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] settings moved to {relocated}")
+
+		return relocated
+
+	return source
+
+
+def reload_settings(settings: Settings, stamp: float) -> tuple[Settings, float]:
+	source = _settings_source(settings)
+	current = _stamp(source)
+
+	if source == settings.path and current == stamp:
 		return settings, stamp
 
-	loaded, error = read_toml(settings.path)
+	loaded, error = read_toml(source)
 
 	if error is not None:
 		print(f"[WARNING] {error}, keeping the previous settings")
@@ -489,7 +508,7 @@ def reload_settings(settings: Settings, stamp: float) -> tuple[Settings, float]:
 	if loaded is None:
 		return settings, current
 
-	refreshed = Settings.merged(loaded, path=settings.path)
+	refreshed = Settings.merged(loaded, path=source)
 
 	for problem in refreshed.problems:
 		print(f"[WARNING] {problem}")
@@ -527,8 +546,11 @@ def run(settings: Settings | None = None) -> int:
 		return 1
 
 	stamp = _stamp(settings.path)
+	started_at = time.strftime("%Y-%m-%d %H:%M:%S")
 
-	write_pid(os.getpid(), settings, watched)
+	write_pid(os.getpid(), settings, watched, started_at)
+
+	recorded = (str(settings.path), str(data_path(settings)), list(watched))
 
 	stopping = False
 
@@ -559,6 +581,12 @@ def run(settings: Settings | None = None) -> int:
 			timestamp_format = settings["daemon"]["timestamp_format"]
 
 			data, result = update_database(watched, archive, settings)
+
+			current = (str(settings.path), str(data_path(settings)), list(watched))
+
+			if current != recorded:
+				write_pid(os.getpid(), settings, watched, started_at)
+				recorded = current
 
 			timestamp = time.strftime(timestamp_format)
 

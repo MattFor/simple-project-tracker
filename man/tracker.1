@@ -45,7 +45,8 @@ Show the program version.
 .TP
 .BR list ", " l ", " ls
 List tracked projects. Accepts a search word, a limit,
-.BR all " (also " a ", " max " and " full ") for no limit, a"
+.BR all " (also " a ", " max " and " full ") for no limit and no"
+.BR display.filter ", a"
 .B regex
 pattern, list filters and temporary setting overrides in
 .IR setting = value
@@ -236,7 +237,11 @@ and
 are accepted too, and a status matches exactly or by prefix.
 .TP
 .B all
-Every tracked project. Prefer this to
+Every tracked project, with
+.B display.filter
+and
+.B display.list_limit
+ignored so that nothing is hidden. Prefer this to
 .BR * ,
 which the shell expands to a directory listing before tracker sees it.
 .TP

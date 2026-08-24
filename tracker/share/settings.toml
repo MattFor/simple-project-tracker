@@ -60,7 +60,7 @@ horizontal_separator = "-"
 # Widest line to print, 0 follows the terminal.
 max_width = 0
 
-# Applies to every listing, the bare `tracker` included.
+# Applies to every listing. (except `all`)
 #
 # +m:value  = include partial name/path matches
 # -m:value  = exclude partial name/path matches

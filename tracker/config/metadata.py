@@ -41,7 +41,7 @@ def _source_tree() -> dict[str, str]:
 	if not paths.in_source_tree():
 		return {}
 
-	data: dict[str, Any] = load_toml(paths.PROJECT_ROOT / "pyproject.toml") or {}
+	data: dict[str, Any] = load_toml(paths.project_root() / "pyproject.toml") or {}
 	table = data.get("project")
 
 	if not isinstance(table, dict):

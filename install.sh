@@ -201,6 +201,12 @@ else
 
 set -e
 
+if [[ ! -d "${PROJECT_DIR}" ]]; then
+    echo "[ERROR] tracker was installed from ${PROJECT_DIR}, which is gone." >&2
+    echo "        if you moved or renamed it run install.sh again from there." >&2
+    exit 1
+fi
+
 cd "${PROJECT_DIR}"
 exec "${PYTHON_BIN}" -m tracker "\$@"
 EOF

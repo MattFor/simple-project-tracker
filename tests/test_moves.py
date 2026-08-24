@@ -6,6 +6,7 @@ from tracker.config.settings import Settings
 
 from tracker.core.daemon import merge_scan
 from tracker.core.discovery import find_projects
+from tracker.cli.commands import Context, scan_into
 from tracker.core.models import Projects, new_project
 from tracker.core.identity import apply_moves, identity_of
 
@@ -176,6 +177,90 @@ def test_an_unrelated_project_of_the_same_name_is_not_a_move(tmp_path: Path):
 	assert data[new]["status"] == "unknown"
 	assert data[new].get("note", "") == ""
 	assert old in data
+
+
+def test_a_differently_named_arrival_is_not_a_move_without_a_fingerprint(
+	tmp_path: Path,
+):
+	build(tmp_path, "alpha")
+
+	old = str(tmp_path / "beta")
+	new = str(tmp_path / "alpha")
+
+	data: Projects = {
+		old: new_project(old, status="dev", project_id=4, note="mine"),
+		new: scan(tmp_path)[new],
+	}
+
+	assert data[new].get("identity")
+	assert apply_moves(data, [new], [old]) == []
+	assert old in data
+
+
+def test_a_move_is_followed_when_only_the_new_copy_is_fingerprinted(tmp_path: Path):
+	build(tmp_path, "alpha")
+
+	old = str(tmp_path / "elsewhere" / "alpha")
+	new = str(tmp_path / "alpha")
+
+	data: Projects = {
+		old: new_project(old, status="dev", project_id=4, note="mine"),
+		new: scan(tmp_path)[new],
+	}
+
+	assert apply_moves(data, [new], [old]) == [(old, new)]
+	assert data[new]["id"] == 4
+	assert data[new].get("note") == "mine"
+
+
+def test_a_scan_of_the_new_directory_alone_still_follows_the_rename(tmp_path: Path):
+	watched = tmp_path / "code"
+	watched.mkdir()
+	build(watched, "alpha")
+
+	settings = make_settings()
+
+	data: Projects = {}
+	_ = merge_scan(data, [watched], scan(watched, settings), True, settings)
+
+	old = str(watched / "alpha")
+	data[old]["note"] = "keep me"
+
+	_ = (watched / "alpha").rename(watched / "renamed")
+
+	new = watched / "renamed"
+	holder = Context(settings=settings, data=data)
+
+	result = scan_into(holder, new)
+
+	assert result.moved == [(old, str(new))]
+	assert not result.added
+	assert old not in data
+	assert data[str(new)].get("note") == "keep me"
+
+
+def test_an_empty_directory_left_behind_does_not_hide_the_move(tmp_path: Path):
+	watched = tmp_path / "code"
+	watched.mkdir()
+	build(watched, "alpha")
+
+	settings = make_settings()
+
+	data: Projects = {}
+	_ = merge_scan(data, [watched], scan(watched, settings), True, settings)
+
+	old = str(watched / "alpha")
+	data[old]["note"] = "keep me"
+
+	_ = (watched / "alpha").rename(watched / "renamed")
+
+	(watched / "alpha" / ".idea").mkdir(parents=True)
+
+	holder = Context(settings=settings, data=data)
+	result = scan_into(holder, watched)
+
+	assert result.moved == [(old, str(watched / "renamed"))]
+	assert data[str(watched / "renamed")].get("note") == "keep me"
 
 
 def test_a_move_carries_the_usage_counter(tmp_path: Path):

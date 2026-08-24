@@ -43,6 +43,33 @@ def test_a_limit_keyword_lists_everything(tmp_path: Path):
 		}
 
 
+def test_a_limit_keyword_ignores_the_configured_filter(tmp_path: Path):
+	holder = context(tmp_path, display__filter=["-s:archived"])
+
+	assert listed(output(command_list, holder, [])) == {"alpha", "gamma"}
+
+	for keyword in ("all", "a", "max", "full"):
+		assert listed(output(command_list, holder, [keyword])) == {
+			"alpha",
+			"beta",
+			"gamma",
+		}
+
+
+def test_all_shows_the_filtered_out_projects_too(tmp_path: Path):
+	holder = context(tmp_path, display__filter=["-s:archived"], display__list_limit=1)
+
+	assert listed(output(command_show, holder, ["all"])) == {"alpha", "beta", "gamma"}
+
+
+def test_a_filter_given_on_the_command_line_still_applies_to_all(tmp_path: Path):
+	holder = context(tmp_path, display__filter=["-s:archived"])
+
+	shown = output(command_list, holder, ["all", "-s:todo"])
+
+	assert listed(shown) == {"alpha", "beta"}
+
+
 def test_a_bare_project_shows_everything_about_it(tmp_path: Path):
 	holder = context(tmp_path)
 

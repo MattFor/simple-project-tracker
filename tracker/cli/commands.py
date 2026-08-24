@@ -16,8 +16,8 @@ from tracker.config.metadata import project as metadata
 from tracker.config.defaults import SECTION_TITLES, defaults
 from tracker.config.settings import Settings, parse_setting_value
 
-from tracker.core.identity import apply_moves, identity_of
 from tracker.core.labels import apply_labels, automatic_label
+from tracker.core.identity import apply_moves, identity_of, vanished
 from tracker.core.discovery import find_projects, is_project, touched_at
 
 from tracker.ui.ansi import C
@@ -294,6 +294,7 @@ def command_list(context: Context, args: list[str]) -> int:
 
 		if stripped.lower() in LIMIT_KEYWORDS:
 			settings = settings.override("display.list_limit", 0)
+			settings = settings.override("display.filter", [])
 			index += 1
 			continue
 
@@ -350,7 +351,7 @@ def command_show(context: Context, args: list[str]) -> int:
 		return 0
 
 	if len(args) == 1 and args[0].lower() in ALL_SELECTORS:
-		return command_list(context, ["0"])
+		return command_list(context, ["all"])
 
 	selected, unmatched = resolve_selection(
 		context.data, context.settings, args, quiet=True
@@ -529,8 +530,12 @@ def follow_moves(
 		path
 		for path in context.data
 		if path not in appeared
-		and not Path(path).is_dir()
-		and (root is None or Path(path).is_relative_to(root))
+		and vanished(path, context.data[path])
+		and (
+			root is None
+			or Path(path).is_relative_to(root)
+			or context.data[path].get("identity")
+		)
 	]
 
 	moved = apply_moves(context.data, appeared, gone)

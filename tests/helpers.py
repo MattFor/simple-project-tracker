@@ -1,12 +1,18 @@
 import os
 import sys
 
-from typing import Any
+from typing import Any, Protocol
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tracker.config.settings import Settings
 from tracker.core.models import Projects, new_project
+
+
+class Patcher(Protocol):
+	def setattr(self, target: Any, name: str, value: Any) -> None: ...
+
+	def chdir(self, path: str | os.PathLike[str]) -> None: ...
 
 
 def make_settings(**overrides: Any) -> Settings:

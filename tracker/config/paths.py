@@ -2,10 +2,8 @@ import os
 
 from pathlib import Path
 
-PACKAGE_ROOT = Path(__file__).resolve().parent.parent
-PROJECT_ROOT = PACKAGE_ROOT.parent
+_INSTALLED_PACKAGE = Path(__file__).resolve().parent.parent
 
-SHARE_DIR = PACKAGE_ROOT / "share"
 SYSTEM_SHARE_DIRS = (Path("/usr/share/tracker"), Path("/usr/local/share/tracker"))
 
 HELP_NAME = "help.txt"
@@ -15,8 +13,66 @@ LOCAL_SETTINGS_NAME = "my_settings.toml"
 DEFAULT_DATA_FILE = "data.pkl"
 
 
+#
+# Where the package lives
+#
+
+
+def _inode(path: Path) -> tuple[int, int] | None:
+	try:
+		stats = path.stat()
+	except OSError:
+		return None
+
+	return stats.st_dev, stats.st_ino
+
+
+_PACKAGE_INODE = _inode(_INSTALLED_PACKAGE)
+
+_recovered: dict[str, Path] = {}
+
+
+def _find_moved_package() -> Path | None:
+	"""The daemon outlives a rename of the directory it was started from."""
+	if _PACKAGE_INODE is None:
+		return None
+
+	known = _recovered.get("package")
+
+	if known is not None and _inode(known) == _PACKAGE_INODE:
+		return known
+
+	try:
+		current = Path.cwd()
+	except OSError:
+		return None
+
+	for candidate in (current / _INSTALLED_PACKAGE.name, current):
+		if _inode(candidate) == _PACKAGE_INODE:
+			_recovered["package"] = candidate
+
+			return candidate
+
+	return None
+
+
+def package_root() -> Path:
+	if _inode(_INSTALLED_PACKAGE) == _PACKAGE_INODE:
+		return _INSTALLED_PACKAGE
+
+	return _find_moved_package() or _INSTALLED_PACKAGE
+
+
+def project_root() -> Path:
+	return package_root().parent
+
+
+def share_dir() -> Path:
+	return package_root() / "share"
+
+
 def in_source_tree() -> bool:
-	return (PROJECT_ROOT / "pyproject.toml").is_file()
+	return (project_root() / "pyproject.toml").is_file()
 
 
 #
@@ -28,7 +84,7 @@ def share_dirs() -> tuple[Path, ...]:
 	override = os.environ.get("TRACKER_SHARE")
 
 	directories = [Path(os.path.expanduser(override))] if override else []
-	directories.append(SHARE_DIR)
+	directories.append(share_dir())
 	directories.extend(SYSTEM_SHARE_DIRS)
 
 	return tuple(directories)
@@ -41,7 +97,7 @@ def bundled_file(name: str) -> Path:
 		if candidate.is_file():
 			return candidate
 
-	return SHARE_DIR / name
+	return share_dir() / name
 
 
 def help_file() -> Path:
@@ -72,11 +128,11 @@ def state_dir() -> Path:
 
 
 def working_dir() -> Path:
-	return PROJECT_ROOT if in_source_tree() else Path.home()
+	return project_root() if in_source_tree() else Path.home()
 
 
 def database_dir() -> Path:
-	return PROJECT_ROOT if in_source_tree() else data_dir()
+	return project_root() if in_source_tree() else data_dir()
 
 
 def resolve(path: str | os.PathLike[str], base: Path | None = None) -> Path:
@@ -105,7 +161,7 @@ def settings_file() -> Path:
 
 	if in_source_tree():
 		for name in (LOCAL_SETTINGS_NAME, SETTINGS_NAME):
-			candidate = PROJECT_ROOT / name
+			candidate = project_root() / name
 
 			if candidate.is_file():
 				return candidate

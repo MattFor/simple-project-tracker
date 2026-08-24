@@ -15,6 +15,16 @@ def identity_of(path: str) -> str:
 	return f"{stats.st_dev}:{stats.st_ino}"
 
 
+def vanished(path: str, project: Project) -> bool:
+	"""The project that lived here is gone, what now?"""
+	if not Path(path).is_dir():
+		return True
+
+	stored = str(project.get("identity", "") or "")
+
+	return bool(stored) and identity_of(path) != stored
+
+
 def _identity(path: str, project: Project) -> str:
 	stored = str(project.get("identity", "") or "")
 
@@ -22,17 +32,24 @@ def _identity(path: str, project: Project) -> str:
 
 
 def _name(path: str, project: Project) -> str:
+	del project
+
+	return Path(path).name.lower()
+
+
+def _unfingerprinted_name(path: str, project: Project) -> str:
 	if project.get("identity"):
 		return ""
 
-	return Path(path).name.lower()
+	return _name(path, project)
 
 
 def _pair(
 	data: Projects,
 	appeared: list[str],
 	gone: list[str],
-	key: Key,
+	arriving: Key,
+	leaving: Key,
 	moves: dict[str, str],
 	taken: set[str],
 ) -> None:
@@ -42,7 +59,7 @@ def _pair(
 		if path in taken:
 			continue
 
-		value = key(path, data[path])
+		value = arriving(path, data[path])
 
 		if value:
 			arrivals.setdefault(value, []).append(path)
@@ -51,14 +68,16 @@ def _pair(
 		if old in moves:
 			continue
 
-		value = key(old, data[old])
+		value = leaving(old, data[old])
 		candidates = arrivals.get(value, []) if value else []
 
 		if len(candidates) != 1:
 			continue
 
 		owners = [
-			path for path in gone if path not in moves and key(path, data[path]) == value
+			path
+			for path in gone
+			if path not in moves and leaving(path, data[path]) == value
 		]
 
 		if len(owners) != 1:
@@ -80,8 +99,8 @@ def detect_moves(
 	moves: dict[str, str] = {}
 	taken: set[str] = set()
 
-	for key in (_identity, _name):
-		_pair(data, arrived, missing, key, moves, taken)
+	for arriving, leaving in ((_identity, _identity), (_name, _unfingerprinted_name)):
+		_pair(data, arrived, missing, arriving, leaving, moves, taken)
 
 	return moves
 

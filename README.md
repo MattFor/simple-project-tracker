@@ -69,7 +69,7 @@ A bare word defaults to a project lookup.
 ```sh
 t tra          # the check view for tracker
 t stable       # nothing is called that, so every stable project
-t all          # everything, no limit
+t all          # everything with no limit and no filter
 ```
 
 For more information do: `t help`, `t help <command>` or `t help <topic>`. The full guide
@@ -85,7 +85,7 @@ is within `man tracker`.
 | `3-7`,`5+3` | A range, either direction, or a project and the next few  |
 | `s:blocked` | Every project with that status, `st:` and `status:` too   |
 | `name`      | Exact or partial name, or a path, tab completion included |
-| `all`       | Every tracked project                                     |
+| `all`       | Every tracked project limits and display filters off      |
 
 A temporary ID is the index of the latest output.
 
@@ -107,7 +107,7 @@ or by its initials, with the section shortening the same way: `display.list_limi
 
 | Setting                             | What it does                                                |
 |-------------------------------------|-------------------------------------------------------------|
-| `display.filter`                    | Filters every listing, e.g. `["-s:archive"]`                |
+| `display.filter`                    | Filters every listing but `all`, e.g. `["-s:archive"]`      |
 | `display.columns`, `display.format` | Which columns, or a row layout of your own                  |
 | `display.relative_times`            | `2 days ago` instead of a timestamp                         |
 | `display.name_max_width`            | Shorten long names, `truncate` or `abbreviate`              |

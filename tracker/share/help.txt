@@ -48,7 +48,7 @@
          {GREEN}tracker list tracker{RESET}
          {GREEN}tracker list 20{RESET}
          {GREEN}tracker list 0{RESET}                        {GRAY}no limit{RESET}
-         {GREEN}tracker list all{RESET}                      {GRAY}no limit, {GREEN}a{GRAY}, {GREEN}max{GRAY} and {GREEN}full{GRAY} too{RESET}
+         {GREEN}tracker list all{RESET}                      {GRAY}no limit and no filter, {GREEN}a{GRAY}, {GREEN}max{GRAY} and {GREEN}full{GRAY} too{RESET}
          {GREEN}tracker list regex "^relaxy-"{RESET}
          {GREEN}tracker list -m:archived{RESET}
          {GREEN}tracker list s:current,planned{RESET}           {GRAY}only these statuses{RESET}
@@ -254,7 +254,7 @@
    {GREEN}:n{RESET}             Force the temporary ID, shorthand for {GREEN}t:n{RESET}
    {GREEN}n-x{RESET}            Inclusive range, in either direction
    {GREEN}n+x{RESET}            n and the next x projects
-   {GREEN}all{RESET}            Every tracked project
+   {GREEN}all{RESET}            Every tracked project, {GRAY}display.filter{RESET} and the limit ignored
    {GREEN}s:status{RESET}       Every project holding that status {GRAY}(st:, status: too){RESET}
    {GREEN}s:a,b{RESET}          Every project holding any of them
    {GREEN}name{RESET}           Exact or partial project name
