@@ -2,6 +2,7 @@ import os
 import json
 import pickle
 import tomllib
+import contextlib
 
 from typing import Any
 from pathlib import Path
@@ -31,10 +32,8 @@ def atomic_write(path: Path, payload: bytes) -> bool:
 
 	except OSError:
 		if temporary is not None:
-			try:
+			with contextlib.suppress(OSError):
 				temporary.unlink(missing_ok=True)
-			except OSError:
-				pass
 
 		return False
 
@@ -55,7 +54,7 @@ def save_json(path: Path, data: dict[str, Any]) -> bool:
 
 def load_json(path: Path) -> dict[str, Any] | None:
 	try:
-		with open(path, "r", encoding="utf-8") as f:
+		with open(path, encoding="utf-8") as f:
 			data: Any = json.load(f)
 	except (OSError, UnicodeDecodeError, json.JSONDecodeError):
 		return None

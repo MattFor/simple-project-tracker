@@ -1,14 +1,15 @@
 import os
 import re
 
-from typing import Any, Callable
+from typing import Any
 from pathlib import Path
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from tracker.util.text import parse_time
 from tracker.config.settings import Settings
 from tracker.config.defaults import SORT_KEYS
 from tracker.core.models import Project, Projects
+from tracker.core.frecency import SOURCES, best_match
 
 
 #
@@ -107,10 +108,49 @@ def sort_projects(projects: Projects, settings: Settings) -> list[tuple[str, Pro
 	return sorted(projects.items(), key=_sort_key(settings), reverse=reverse)
 
 
+def visible_projects(projects: Projects, settings: Settings) -> Projects:
+	configured = settings.get("display.filter", [])
+
+	if not isinstance(configured, list):
+		return projects
+
+	filters: list[Any] = configured
+
+	return filter_projects(projects, [str(entry) for entry in filters], quiet=True)
+
+
+def current_numbering(projects: Projects, settings: Settings) -> dict[str, int]:
+	ordered = sort_projects(visible_projects(projects, settings), settings)
+
+	return {path: tid for tid, (path, _) in enumerate(ordered, 1)}
+
+
+def pin_numbering(paths: list[str], settings: Settings) -> dict[str, int]:
+	from tracker.core.view import save_numbering
+
+	numbering = {path: number for number, path in enumerate(paths, 1)}
+
+	_ = save_numbering(numbering, settings)
+
+	return numbering
+
+
+def pin_projects(projects: Projects, settings: Settings) -> dict[str, int]:
+	return pin_numbering(
+		[path for path, _ in sort_projects(projects, settings)], settings
+	)
+
+
 def temporary_ids(projects: Projects, settings: Settings) -> dict[str, int]:
-	return {
-		path: tid for tid, (path, _) in enumerate(sort_projects(projects, settings), 1)
-	}
+	from tracker.core.view import load_numbering
+
+	stored = load_numbering(settings)
+
+	if stored is None:
+		return current_numbering(projects, settings)
+
+	# A project the last listing never showed has no row to point at
+	return {path: number for path, number in stored.items() if path in projects}
 
 
 #
@@ -151,17 +191,49 @@ def parse_filter(token: str) -> str | None:
 	return f"{action}{_FILTER_NAMES[kind]}:{value}"
 
 
-def filter_projects(projects: Projects, filters: list[str]) -> Projects:
+def _matching(
+	projects: Projects, filter_type: str, value: str, quiet: bool
+) -> set[str] | None:
+	if filter_type == "m":
+		needle = value.lower()
+
+		return {
+			path
+			for path in projects
+			if needle in Path(path).name.lower() or needle in path.lower()
+		}
+
+	if filter_type == "s":
+		wanted = status_values(value)
+
+		return {
+			path for path, project in projects.items() if status_matches(project, wanted)
+		}
+
+	try:
+		pattern = re.compile(value, re.IGNORECASE)
+	except re.error as error:
+		if not quiet:
+			print(f"[ERROR] invalid regex '{value}': {error}")
+
+		return None
+
+	return {path for path in projects if pattern.search(Path(path).name)}
+
+
+def filter_projects(
+	projects: Projects, filters: list[str], *, quiet: bool = False
+) -> Projects:
 	if not filters:
 		return projects
 
 	filtered: Projects = dict(projects)
 
-	for expression in filters:
-		expression = expression.strip()
+	for entry in filters:
+		expression = entry.strip()
 
 		if len(expression) < 4 or expression[2] != ":":
-			if expression:
+			if expression and not quiet:
 				print(f"[ERROR] invalid filter '{expression}', expected +m:value")
 
 			continue
@@ -171,47 +243,26 @@ def filter_projects(projects: Projects, filters: list[str]) -> Projects:
 		value = expression[3:]
 
 		if action not in ("+", "-"):
-			print(f"[ERROR] invalid filter '{expression}', must start with + or -")
+			if not quiet:
+				print(f"[ERROR] invalid filter '{expression}', must start with + or -")
+
 			continue
 
 		if filter_type not in FILTER_TYPES:
-			kinds = ", ".join(FILTER_TYPES)
+			if not quiet:
+				kinds = ", ".join(FILTER_TYPES)
 
-			print(f"[ERROR] invalid filter '{expression}', type must be {kinds}")
+				print(f"[ERROR] invalid filter '{expression}', type must be {kinds}")
+
 			continue
 
 		if not value:
 			continue
 
-		# noinspection unused-local
-		matches: set[str] = set()
+		matches = _matching(filtered, filter_type, value, quiet)
 
-		if filter_type == "m":
-			needle = value.lower()
-
-			matches = {
-				path
-				for path in filtered
-				if needle in Path(path).name.lower() or needle in path.lower()
-			}
-
-		elif filter_type == "s":
-			wanted = status_values(value)
-
-			matches = {
-				path
-				for path, project in filtered.items()
-				if status_matches(project, wanted)
-			}
-
-		else:
-			try:
-				pattern = re.compile(value, re.IGNORECASE)
-			except re.error as error:
-				print(f"[ERROR] invalid regex '{value}': {error}")
-				continue
-
-			matches = {path for path in filtered if pattern.search(Path(path).name)}
+		if matches is None:
+			continue
 
 		if action == "+":
 			filtered = {path: p for path, p in filtered.items() if path in matches}
@@ -255,12 +306,13 @@ _NUMERIC = r"\d+(?:[-+]\d+)?"
 _RELATIVE = re.compile(r"(\d+)\+(\d+)")
 _RANGE = re.compile(r"(\d+)-(\d+)")
 
-# #5 always means the permanent ID | @5 always means the temporary ID
+# #5 always means the permanent ID | @5 and :5 always mean the temporary ID
 _EXPLICIT = re.compile(rf"([#@])({_NUMERIC})")
+_SHORT_TID = re.compile(rf":({_NUMERIC})")
 
 _NAMED = re.compile(rf"(tid|id|t|i)[:=]({_NUMERIC})", re.IGNORECASE)
 
-# s:blocked, status:blocked,todo -> every project with that status
+# s:blocked, status:blocked,planned -> every project with that status
 _STATUS = re.compile(r"(status|state|st|s)[:=](.+)", re.IGNORECASE)
 
 ALL_SELECTORS = ("all", "*")
@@ -273,10 +325,8 @@ def resolve_selection(
 	*,
 	quiet: bool = False,
 ) -> tuple[Projects, list[str]]:
-	ordered = sort_projects(projects, settings)
-
-	temporary_ids = {path: tid for tid, (path, _) in enumerate(ordered, 1)}
-	by_tid = {tid: path for path, tid in temporary_ids.items()}
+	numbering = temporary_ids(projects, settings)
+	by_tid = {tid: path for path, tid in numbering.items()}
 
 	selected: Projects = {}
 	unmatched: list[str] = []
@@ -290,13 +340,15 @@ def resolve_selection(
 		if not quiet:
 			print(message)
 
-	# noinspection shadowing-names
-	def show(matches: list[tuple[str, Project]]) -> None:
+	def show(rows: list[tuple[str, Project]], renumber: bool = False) -> None:
 		from tracker.ui.render import render_rows
+
+		shown = (
+			pin_numbering([path for path, _ in rows], settings) if renumber else numbering
+		)
 
 		view = settings
 
-		# Both have to be ther to tell them apart
 		try:
 			view = view.override("display.format", "")
 			view = view.override(
@@ -305,9 +357,7 @@ def resolve_selection(
 		except (KeyError, ValueError):
 			view = settings
 
-		for line in render_rows(
-			matches, view, temporary_ids, show_headers=True, prefix="  "
-		):
+		for line in render_rows(rows, view, shown, show_headers=True, prefix="  "):
 			report(line)
 
 	def find_number(number: int, source: str = "any") -> list[tuple[str, Project]]:
@@ -331,37 +381,33 @@ def resolve_selection(
 
 		return by_id or by_temporary
 
-	# True  = selected it
-	# False = found nothing
-	# None  = it was ambiguous
+	# True = selected it | False = found nothing | None = it was ambiguous
 	def select_number(
 		number: int,
 		source: str = "any",
 		complain: bool = True,
 		explain: bool = True,
 	) -> bool | None:
-		# noinspection shadowing-names
-		matches = find_number(number, source)
+		found = find_number(number, source)
 
-		if not matches:
+		if not found:
 			if complain:
 				report(f"[ERROR] no project matches ID/TID '{number}'")
 
 			return False
 
-		if len(matches) > 1:
+		if len(found) > 1:
 			if explain:
 				report(f"[ERROR] '{number}' is both an ID and a TID:")
-				show(matches)
+				show(found)
 				report(f"        use i:{number} for the ID or t:{number} for the TID")
 
 			return None
 
-		selected[matches[0][0]] = matches[0][1]
+		selected[found[0][0]] = found[0][1]
 
 		return True
 
-	# noinspection shadowing-names
 	def select_range(start: int, end: int, source: str = "any") -> bool | None:
 		step = 1 if end >= start else -1
 
@@ -410,7 +456,6 @@ def resolve_selection(
 
 		return select_number(int(text), source)
 
-	# noinspection shadowing-names
 	def select_status(value: str) -> bool:
 		wanted = status_values(value)
 
@@ -434,7 +479,6 @@ def resolve_selection(
 
 		return True
 
-	# noinspection shadowing-names
 	def on_disk(selector: str) -> str | None:
 		candidate = Path(os.path.expanduser(selector))
 
@@ -446,7 +490,6 @@ def resolve_selection(
 		except OSError:
 			return None
 
-	# noinspection shadowing-names
 	def select_named(selector: str, complain: bool = True) -> bool:
 		identifier = os.path.expanduser(selector).lower().rstrip("/")
 
@@ -478,49 +521,56 @@ def resolve_selection(
 			selected[exact_name[0][0]] = exact_name[0][1]
 			return True
 
-		# noinspection shadowing-names
-		matches = [
+		found = [
 			(path, project)
 			for path, project in projects.items()
 			if identifier in Path(path).name.lower() or identifier in path.lower()
 		]
 
-		if not matches:
+		if not found:
 			if complain:
 				report(f"[ERROR] project '{selector}' was not found")
 
 			return False
 
-		if len(matches) == 1:
-			selected[matches[0][0]] = matches[0][1]
+		if len(found) == 1:
+			selected[found[0][0]] = found[0][1]
 			return True
 
-		if preference == "starts_with":
-			starts_with = [
-				(path, project)
-				for path, project in matches
-				if Path(path).name.lower().startswith(identifier)
-			]
+		prefixed = [
+			(path, project)
+			for path, project in found
+			if Path(path).name.lower().startswith(identifier)
+		]
 
-			if len(starts_with) == 1:
-				selected[starts_with[0][0]] = starts_with[0][1]
+		if preference == "starts_with":
+			if len(prefixed) == 1:
+				selected[prefixed[0][0]] = prefixed[0][1]
 				return True
 
-			if starts_with:
-				matches = starts_with
+			if prefixed:
+				found = prefixed
 
 		if preference == "first_match":
-			ranked = sorted(matches, key=lambda item: temporary_ids.get(item[0], 0))
+			ranked = sorted(found, key=lambda item: numbering.get(item[0], 0))
 
 			selected[ranked[0][0]] = ranked[0][1]
 			return True
 
+		if preference in SOURCES:
+			found = prefixed or found
+
+			best = best_match(found, settings, preference)
+
+			if best is not None:
+				selected[best[0]] = best[1]
+				return True
+
 		report(f"[ERROR] multiple projects match '{selector}':")
-		show(matches)
+		show(found, renumber=True)
 
 		return False
 
-	# noinspection shadowing-names
 	def resolve(selector: str) -> bool:
 		if selector.lower() in ALL_SELECTORS:
 			selected.update(projects)
@@ -532,6 +582,11 @@ def resolve_selection(
 			source = "id" if explicit.group(1) == "#" else "tid"
 
 			return select_numeric(explicit.group(2), source) is True
+
+		short = _SHORT_TID.fullmatch(selector)
+
+		if short:
+			return select_numeric(short.group(1), "tid") is True
 
 		named = _NAMED.fullmatch(selector)
 
@@ -567,8 +622,8 @@ def resolve_selection(
 
 		return select_named(selector)
 
-	for selector in selectors:
-		selector = selector.strip()
+	for entry in selectors:
+		selector = entry.strip()
 
 		if not selector:
 			continue

@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 
 from typing import IO, final
@@ -16,6 +17,34 @@ _CODES = {
 	"WHITE": "\033[37m",
 	"GRAY": "\033[90m",
 }
+
+MARKUP = {
+	"/": "RESET",
+	"reset": "RESET",
+	"b": "BOLD",
+	"bold": "BOLD",
+	"d": "DIM",
+	"dim": "DIM",
+	"r": "RED",
+	"red": "RED",
+	"g": "GREEN",
+	"green": "GREEN",
+	"y": "YELLOW",
+	"yellow": "YELLOW",
+	"u": "BLUE",
+	"blue": "BLUE",
+	"m": "MAGENTA",
+	"magenta": "MAGENTA",
+	"c": "CYAN",
+	"cyan": "CYAN",
+	"w": "WHITE",
+	"white": "WHITE",
+	"k": "GRAY",
+	"gray": "GRAY",
+	"grey": "GRAY",
+}
+
+_MARKUP = re.compile(r"\{(/|[A-Za-z]+)\}")
 
 
 @final
@@ -55,6 +84,29 @@ class Palette:
 
 
 C = Palette(True)
+
+
+def markup(text: str, base: str = "") -> str:
+	if "{" not in text:
+		return text
+
+	fallback = _CODES.get(base.strip().upper(), "") if base else ""
+
+	def replace(match: re.Match[str]) -> str:
+		name = MARKUP.get(match.group(1).lower())
+
+		if name is None:
+			return match.group(0)
+
+		if not C.enabled:
+			return ""
+
+		if name == "RESET":
+			return _CODES["RESET"] + fallback
+
+		return _CODES[name]
+
+	return _MARKUP.sub(replace, text)
 
 
 def configure(setting: bool = True, stream: IO[str] | None = None) -> None:

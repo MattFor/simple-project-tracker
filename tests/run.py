@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import inspect
 import tempfile
@@ -11,9 +12,13 @@ ROOT = Path(__file__).resolve().parent.parent
 
 sys.path.insert(0, str(ROOT))
 
+os.environ["TRACKER_VIEW"] = str(Path(tempfile.mkdtemp()).resolve() / "view.json")
+
 
 def main() -> int:
 	import importlib
+
+	from tracker.ui import ansi
 
 	modules = sorted(path.stem for path in Path(__file__).parent.glob("test_*.py"))
 
@@ -28,9 +33,14 @@ def main() -> int:
 				continue
 
 			arguments = {}
+			sandbox = Path(tempfile.mkdtemp()).resolve()
+
+			os.environ["TRACKER_VIEW"] = str(sandbox / "view.json")
+
+			ansi.C.set_enabled(False)
 
 			if "tmp_path" in inspect.signature(function).parameters:
-				arguments["tmp_path"] = Path(tempfile.mkdtemp())
+				arguments["tmp_path"] = sandbox
 
 			try:
 				_ = function(**arguments)

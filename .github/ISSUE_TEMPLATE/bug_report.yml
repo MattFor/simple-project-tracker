@@ -1,0 +1,48 @@
+name: Bug report
+description: Something doesn't work how it should
+labels: [ bug ]
+
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the report! The output of `tracker version --verbose` should be enough.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Paste the command and its output.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: version
+    attributes:
+      label: Version
+      description: The output of `tracker version --verbose`
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: system
+    attributes:
+      label: System
+      placeholder: Void Linux, kernel 6.18, installed with ./install.sh
+    validations:
+      required: true
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings
+      description: Anything you changed from the defaults, `tracker settings` marks them as changed.
+      render: toml

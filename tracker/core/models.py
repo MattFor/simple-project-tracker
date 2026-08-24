@@ -10,6 +10,8 @@ class Project(TypedDict):
 
 	note: NotRequired[str]
 
+	uses: NotRequired[int]
+	identity: NotRequired[str]
 	first_seen: NotRequired[str]
 	last_used: NotRequired[str]
 	deleted_at: NotRequired[str]
@@ -23,6 +25,10 @@ Projects = dict[str, Project]
 TRANSIENT_FIELDS = ("tid",)
 
 UNKNOWN_TIME = "unknown"
+
+DELETED_MARKER = "[DELETED]"
+
+TEXT_FIELDS = ("path", "status", "last_touched", "note", "identity")
 
 
 def get_id(projects: Projects) -> int:
@@ -45,6 +51,7 @@ def new_project(
 	note: str = "",
 	project_id: int = 0,
 	first_seen: str = "",
+	identity: str = "",
 ) -> Project:
 	project: Project = {
 		"id": project_id,
@@ -53,6 +60,9 @@ def new_project(
 		"last_touched": last_touched,
 		"note": note,
 	}
+
+	if identity:
+		project["identity"] = identity
 
 	if first_seen:
 		project["first_seen"] = first_seen
@@ -89,6 +99,15 @@ def normalise(projects: Any) -> Projects:
 		entry["last_touched"] = str(entry.get("last_touched") or UNKNOWN_TIME)
 		entry["note"] = str(entry.get("note") or "")
 
+		if "identity" in entry:
+			entry["identity"] = str(entry["identity"] or "")
+
+		if "uses" in entry:
+			try:
+				entry["uses"] = max(0, int(entry["uses"]))
+			except (TypeError, ValueError):
+				entry["uses"] = 0
+
 		if "archived" in entry:
 			entry["archived"] = bool(entry["archived"])
 
@@ -99,3 +118,35 @@ def normalise(projects: Any) -> Projects:
 
 def is_archived(project: Project) -> bool:
 	return bool(project.get("archived", False))
+
+
+def archive(project: Project, timestamp: str) -> None:
+	original = str(project.get("note", "") or "")
+
+	project["archived"] = True
+	project["deleted_at"] = timestamp
+	project["archived_note"] = original
+
+	statistics = [
+		f"{DELETED_MARKER} ({timestamp})",
+		f"ID: {project.get('id', '-')}",
+		f"Last touched: {project.get('last_touched', UNKNOWN_TIME)}",
+	]
+
+	first_seen = project.get("first_seen")
+
+	if first_seen:
+		statistics.append(f"First seen: {first_seen}")
+
+	if original:
+		statistics.append(original)
+
+	project["note"] = "\n".join(statistics)
+
+
+def restore(project: Project) -> None:
+	project["archived"] = False
+	project["note"] = str(project.get("archived_note", "") or "")
+
+	_ = project.pop("archived_note", None)
+	_ = project.pop("deleted_at", None)

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from tracker.config import paths
 from tracker.util.files import load_pkl, save_pkl
-from tracker.core.models import Projects, normalise
+from tracker.core.models import TRANSIENT_FIELDS, Projects, normalise
 from tracker.config.settings import Settings, settings as default_settings
 
 
@@ -38,19 +38,22 @@ def load_data(settings: Settings | None = None) -> Projects:
 	return normalise(data)
 
 
-def save_data(data: Projects, settings: Settings | None = None) -> bool:
+def save_data(
+	data: Projects, settings: Settings | None = None, *, undoable: bool = False
+) -> bool:
 	path = data_path(settings)
 
-	# Don't persist the... "temporary" ID
+	if undoable:
+		from tracker.core.undo import keep
+
+		_ = keep(settings)
+
 	for project in data.values():
-		_ = project.pop("tid", None)
+		for field in TRANSIENT_FIELDS:
+			_ = project.pop(field, None)
 
 	if not save_pkl(path, data):
 		print(f"[ERROR] could not write the database at {path}")
 		return False
 
 	return True
-
-
-def create_data(settings: Settings | None = None) -> bool:
-	return save_data({}, settings)

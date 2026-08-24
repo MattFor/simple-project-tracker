@@ -1,5 +1,7 @@
-from typing import Any, final, override
+from typing import Any, final
 from collections.abc import Iterator
+
+from tracker.util.compat import override
 
 
 @final

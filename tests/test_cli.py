@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from tracker.cli.app import extract_flags, fuse, split
 
 
@@ -173,7 +175,7 @@ def test_help_takes_a_topic_that_is_not_a_command():
 
 def test_usage_is_only_recorded_when_it_is_turned_on():
 	from tests.helpers import SAMPLE, make_projects, make_settings
-	from tracker.cli.commands import Context, mark_used
+	from tracker.cli.commands import Context
 
 	for enabled in (True, False):
 		projects = make_projects(*SAMPLE)
@@ -182,7 +184,8 @@ def test_usage_is_only_recorded_when_it_is_turned_on():
 			settings=make_settings(projects__track_usage=enabled), data=projects
 		)
 
-		assert mark_used(context, projects, save=False) is enabled
+		assert context.mark_used(projects) is enabled
+		assert context.pending is enabled
 
 		stamped = [project for project in projects.values() if "last_used" in project]
 
@@ -191,8 +194,76 @@ def test_usage_is_only_recorded_when_it_is_turned_on():
 
 def test_nothing_selected_is_never_stamped():
 	from tests.helpers import make_settings
-	from tracker.cli.commands import Context, mark_used
+	from tracker.cli.commands import Context
 
 	context = Context(settings=make_settings(), data={})
 
-	assert mark_used(context, {}, save=False) is False
+	assert context.mark_used({}) is False
+	assert context.pending is False
+
+
+def test_the_decorator_saves_what_a_command_used(tmp_path: Path):
+	import os
+
+	from tests.helpers import SAMPLE, make_projects, make_settings
+	from tracker.cli.commands import Context, marks_used
+
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+
+	projects = make_projects(*SAMPLE)
+	context = Context(settings=make_settings(), data=projects)
+
+	@marks_used
+	def handler(inner: Context, args: list[str]) -> int:
+		del args
+
+		_ = inner.select(["alpha"])
+
+		return 0
+
+	assert handler(context, []) == 0
+	assert context.pending is False
+	assert (tmp_path / "data.pkl").is_file()
+
+
+def test_editing_only_a_field_fuses_into_edit():
+	assert split(["11", "es", "shelf"]) == [("edit", ["11", "s", "shelf"])]
+	assert split(["t:11", "es", "stable"]) == [("edit", ["t:11", "s", "stable"])]
+	assert split(["11", "en", "review", "later"]) == [
+		("edit", ["11", "n", "review", "later"])
+	]
+	assert fuse("est") == ("edit", "st")
+
+
+def test_a_fused_edit_keeps_its_free_text():
+	args, flags = extract_flags(["11", "en", "yes", "verbose"])
+
+	assert args == ["11", "en", "yes", "verbose"]
+	assert flags["verbose"] is False
+
+	assert split(["11", "en", "check", "the", "list"]) == [
+		("edit", ["11", "n", "check", "the", "list"])
+	]
+
+
+def test_all_asks_a_listing_for_everything():
+	assert split(["list", "all"]) == [("list", ["all"])]
+	assert split(["l", "a"]) == [("list", ["a"])]
+	assert split(["all"]) == [("show", ["all"])]
+
+
+def test_set_status_and_set_note_have_their_own_short_forms():
+	assert split(["12", "ss", "blocked"]) == [("status", ["12", "blocked"])]
+	assert split(["12", "sn", "review", "sunday"]) == [
+		("note", ["12", "review", "sunday"])
+	]
+	assert split(["ss", "12", "blocked"]) == [("status", ["12", "blocked"])]
+
+
+def test_settings_set_keeps_its_own_short_forms():
+	for arguments in (
+		["sset", "sorting.by", "name"],
+		["s", "set", "sorting.by", "name"],
+		["settings", "set", "sorting.by", "name"],
+	):
+		assert split(arguments) == [("settings", ["set", "sorting.by", "name"])]

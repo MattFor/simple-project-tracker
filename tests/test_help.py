@@ -82,8 +82,8 @@ def test_the_topics_named_in_the_help_command_all_exist():
 	named = "".join(lines).split("Topics:")[1]
 	named = named.replace("{RESET}", "").replace("{GRAY}", "").replace(".", "")
 
-	for topic in named.split(","):
-		topic = topic.strip()
+	for entry in named.split(","):
+		topic = entry.strip()
 
 		if topic:
 			assert find(found, topic) is not None, f"no help topic '{topic}'"

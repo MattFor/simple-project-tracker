@@ -5,8 +5,8 @@ from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tracker.config.settings import Settings  # noqa: E402
-from tracker.core.models import Projects, new_project  # noqa: E402
+from tracker.config.settings import Settings
+from tracker.core.models import Projects, new_project
 
 
 def make_settings(**overrides: Any) -> Settings:

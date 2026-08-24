@@ -5,19 +5,27 @@ import time
 import errno
 import signal
 import subprocess
+import contextlib
 
 from typing import Any
 from pathlib import Path
+from dataclasses import dataclass, field
 
 from tracker.config import paths
 from tracker.config.settings import Settings, settings as default_settings
 from tracker.core.discovery import excluded, find_projects
-from tracker.core.models import Project, Projects, get_id
+from tracker.core.identity import apply_moves
+from tracker.core.labels import apply_labels
+from tracker.core.models import (
+	Projects,
+	archive as archive_project,
+	get_id,
+	restore,
+)
 from tracker.core.storage import data_path, load_data, save_data
 from tracker.ui.ansi import C
+from tracker.ui.ask import confirm
 from tracker.util.files import load_json, read_toml, save_json
-
-DELETED_MARKER = "[DELETED]"
 
 
 #
@@ -42,10 +50,8 @@ def read_state() -> dict[str, Any] | None:
 		return None
 
 	if not is_running(pid):
-		try:
+		with contextlib.suppress(OSError):
 			pid_file.unlink(missing_ok=True)
-		except OSError:
-			pass
 
 		return None
 
@@ -100,9 +106,16 @@ def write_pid(pid: int, settings: Settings, watched: list[str]) -> None:
 def find_stray_daemons() -> list[int]:
 	try:
 		result = subprocess.run(
-			["pgrep", "-f", r"python.*-m (tracker daemon run|src\.daemon)"],
+			[
+				"pgrep",
+				"-u",
+				str(os.getuid()),
+				"-f",
+				r"python.*-m (tracker daemon run|src\.daemon)",
+			],
 			capture_output=True,
 			text=True,
+			check=False,
 		)
 	except (OSError, subprocess.SubprocessError):
 		return []
@@ -142,7 +155,7 @@ def start(settings: Settings | None = None) -> int:
 
 	try:
 		log_file.parent.mkdir(parents=True, exist_ok=True)
-		log = open(log_file, "a", buffering=1, encoding="utf-8")
+		log = open(log_file, "a", buffering=1, encoding="utf-8")  # noqa: SIM115
 	except OSError as error:
 		print(f"[ERROR] could not open the log file: {error}")
 		return 1
@@ -169,24 +182,7 @@ def start(settings: Settings | None = None) -> int:
 	return 0
 
 
-def stop() -> int:
-	pids: list[int] = []
-
-	state = read_state()
-	pid = state.get("pid") if state else None
-
-	if pid is not None and not isinstance(pid, int):
-		pid = None
-
-	if pid is not None:
-		pids.append(pid)
-
-	pids.extend(stray for stray in find_stray_daemons() if stray not in pids)
-
-	if not pids:
-		print("no daemons running")
-		return 0
-
+def _terminate(pids: list[int]) -> int:
 	stopped = 0
 
 	for pid in pids:
@@ -198,21 +194,56 @@ def stop() -> int:
 		except PermissionError:
 			print(f"[ERROR] not allowed to stop daemon {pid}")
 
-	try:
-		paths.daemon_pid_file().unlink(missing_ok=True)
-	except OSError:
-		pass
+	return stopped
 
-	if not stopped:
+
+def stop(settings: Settings | None = None, *, assume_yes: bool = False) -> int:
+	settings = settings or default_settings
+
+	state = read_state() or {}
+	pid = state.get("pid")
+
+	if isinstance(pid, int):
+		database = str(state.get("database", ""))
+
+		if database:
+			print(f"{C.GRAY}it watches the database at {database}{C.RESET}")
+
+			if database != str(data_path(settings)):
+				mismatch = "that is not the database this command would use"
+
+				print(f"{C.YELLOW}[WARNING] {mismatch}{C.RESET}")
+
+		stopped = _terminate([pid])
+
+		with contextlib.suppress(OSError):
+			paths.daemon_pid_file().unlink(missing_ok=True)
+
+		print(f"stopped {stopped} daemon" if stopped else "no daemons running")
+
+		return 0
+
+	# No pid file to go on
+	strays = find_stray_daemons()
+
+	if not strays:
 		print("no daemons running")
 		return 0
 
+	count = f"{len(strays)} other tracker daemon{'s' if len(strays) != 1 else ''}"
+
+	print(f"no daemon of this configuration is running, {count} still running:")
+
+	for stray in strays:
+		print(f"  pid {stray}")
+
+	if not confirm(f"stop {count}?", assume_yes=assume_yes):
+		print("cancelled")
+		return 1
+
+	stopped = _terminate(strays)
+
 	print(f"stopped {stopped} daemon{'s' if stopped != 1 else ''}")
-
-	database = str(state.get("database", "")) if state else ""
-
-	if database:
-		print(f"{C.GRAY}it was watching the database at {database}{C.RESET}")
 
 	return 0
 
@@ -287,38 +318,6 @@ def show_log(lines: int = 40) -> int:
 #
 
 
-def _archive(project: Project, timestamp: str) -> None:
-	original = str(project.get("note", "") or "")
-
-	project["archived"] = True
-	project["deleted_at"] = timestamp
-	project["archived_note"] = original
-
-	statistics = [
-		f"{DELETED_MARKER} ({timestamp})",
-		f"ID: {project.get('id', '-')}",
-		f"Last touched: {project.get('last_touched', 'unknown')}",
-	]
-
-	first_seen = project.get("first_seen")
-
-	if first_seen:
-		statistics.append(f"First seen: {first_seen}")
-
-	if original:
-		statistics.append(original)
-
-	project["note"] = "\n".join(statistics)
-
-
-def _restore(project: Project) -> None:
-	project["archived"] = False
-	project["note"] = str(project.get("archived_note", "") or "")
-
-	_ = project.pop("archived_note", None)
-	_ = project.pop("deleted_at", None)
-
-
 def scan_watched(
 	watched: list[str], settings: Settings | None = None
 ) -> tuple[list[Path], Projects]:
@@ -340,20 +339,15 @@ def scan_watched(
 	return valid, found
 
 
-def merge_scan(
-	data: Projects,
-	valid: list[Path],
-	found: Projects,
-	archive: bool,
-	settings: Settings | None = None,
-) -> tuple[bool, list[str], list[str]]:
-	settings = settings or default_settings
+@dataclass
+class ScanResult:
+	changed: bool = False
+	added: list[str] = field(default_factory=list)
+	removed: list[str] = field(default_factory=list)
+	moved: list[tuple[str, str]] = field(default_factory=list)
 
-	before = copy.deepcopy(data)
-	before_paths = set(data)
 
-	timestamp_format: str = settings["daemon"]["timestamp_format"]
-
+def _refresh(data: Projects, found: Projects, timestamp: str) -> None:
 	for project_path, scanned_project in found.items():
 		existing = data.get(project_path)
 
@@ -361,7 +355,7 @@ def merge_scan(
 			entry = copy.deepcopy(scanned_project)
 
 			entry["id"] = get_id(data)
-			entry["first_seen"] = time.strftime(timestamp_format)
+			entry["first_seen"] = timestamp
 			entry["archived"] = False
 
 			data[project_path] = entry
@@ -369,55 +363,95 @@ def merge_scan(
 
 		existing["last_touched"] = scanned_project["last_touched"]
 
+		identity = str(scanned_project.get("identity", "") or "")
+
+		if identity:
+			existing["identity"] = identity
+
 		if existing.get("archived", False):
-			_restore(existing)
+			restore(existing)
+
+
+def _missing(
+	data: Projects, valid: list[Path], found: Projects, exclude: list[str]
+) -> list[str]:
+	return [
+		project_path
+		for project_path in data
+		if project_path not in found
+		and not excluded(project_path, exclude)
+		and any(Path(project_path).is_relative_to(root) for root in valid)
+	]
+
+
+def merge_scan(
+	data: Projects,
+	valid: list[Path],
+	found: Projects,
+	archive: bool,
+	settings: Settings | None = None,
+) -> ScanResult:
+	settings = settings or default_settings
+
+	before = copy.deepcopy(data)
+	before_paths = set(data)
+
+	timestamp = time.strftime(settings["daemon"]["timestamp_format"])
+	exclude: list[str] = settings["scan"]["exclude"]
+
+	_refresh(data, found, timestamp)
+
+	added = [path for path in data if path not in before_paths]
+	gone = _missing(data, valid, found, exclude)
+
+	moved = apply_moves(data, added, gone) if settings["scan"]["detect_moves"] else []
+
+	for old, new in moved:
+		added.remove(new)
+		gone.remove(old)
 
 	removed: list[str] = []
 
-	exclude: list[str] = settings["scan"]["exclude"]
-
-	for project_path in list(data):
-		project = Path(project_path)
-
-		if not any(project.is_relative_to(root) for root in valid):
-			continue
-
-		if project_path in found or excluded(project_path, exclude):
-			continue
-
-		project_data = data[project_path]
+	for project_path in gone:
+		project = data[project_path]
 
 		if not archive:
 			removed.append(project_path)
 			del data[project_path]
 			continue
 
-		if project_data.get("archived", False):
+		if project.get("archived", False):
 			continue
 
-		_archive(project_data, time.strftime(timestamp_format))
+		archive_project(project, timestamp)
 		removed.append(project_path)
 
-	added = [path for path in data if path not in before_paths]
+	_ = apply_labels({path: data[path] for path in data if path in found}, settings)
 
-	return data != before, added, removed
+	return ScanResult(data != before, added, removed, moved)
 
 
 def update_database(
 	watched: list[str],
-	data: Projects,
 	archive: bool,
 	settings: Settings | None = None,
-) -> tuple[Projects, bool, list[str], list[str]]:
+) -> tuple[Projects, ScanResult]:
 	settings = settings or default_settings
 
 	valid, found = scan_watched(watched, settings)
-	changed, added, removed = merge_scan(data, valid, found, archive, settings)
 
-	if changed:
+	data = load_data(settings)
+
+	result = merge_scan(data, valid, found, archive, settings)
+
+	if result.changed:
 		_ = save_data(data, settings)
 
-	return data, changed, added, removed
+	return data, result
+
+
+def _count(entries: list[Any]) -> str:
+	return f"{len(entries)} project{'s' if len(entries) != 1 else ''}"
 
 
 def _report(title: str, entries: list[tuple[str, str, str]], timestamp: str) -> None:
@@ -524,30 +558,32 @@ def run(settings: Settings | None = None) -> int:
 			watched = _watched_paths(settings)
 			timestamp_format = settings["daemon"]["timestamp_format"]
 
-			valid, found = scan_watched(watched, settings)
-
-			data = load_data(settings)
-
-			changed, added, removed = merge_scan(data, valid, found, archive, settings)
-
-			if changed:
-				_ = save_data(data, settings)
+			data, result = update_database(watched, archive, settings)
 
 			timestamp = time.strftime(timestamp_format)
 
 			_report(
-				f"added {len(added)} project{'s' if len(added) != 1 else ''}",
-				[(str(data[path]["id"]), Path(path).name, path) for path in added],
+				f"added {_count(result.added)}",
+				[(str(data[path]["id"]), Path(path).name, path) for path in result.added],
 				timestamp,
 			)
 
 			_report(
-				f"removed {len(removed)} project{'s' if len(removed) != 1 else ''}",
-				[("-", Path(path).name, path) for path in removed],
+				f"moved {_count(result.moved)}",
+				[
+					(str(data[new]["id"]), Path(new).name, f"{old} -> {new}")
+					for old, new in result.moved
+				],
 				timestamp,
 			)
 
-			if not added and not removed and changed:
+			_report(
+				f"removed {_count(result.removed)}",
+				[("-", Path(path).name, path) for path in result.removed],
+				timestamp,
+			)
+
+			if not result.added and not result.removed and result.changed:
 				print(f"[{timestamp}] database updated")
 
 			elapsed = time.monotonic() - started

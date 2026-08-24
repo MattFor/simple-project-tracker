@@ -4,9 +4,9 @@ from importlib import metadata as importlib_metadata
 from tracker.config import paths
 from tracker.util.files import load_toml
 
-NAME = "tracker"
-VERSION = "1.0.0"
-AUTHOR = "MattFor"
+NAME = "!unknown!"
+VERSION = "!unknown!"
+AUTHOR = "!unknown!"
 
 
 def _distribution() -> str:
@@ -24,15 +24,15 @@ def _installed() -> dict[str, str]:
 	except importlib_metadata.PackageNotFoundError:
 		return {}
 
-	author = distribution.get("Author") or ""
+	author = distribution["Author"] or ""
 
 	if not author:
-		contact = distribution.get("Author-email") or ""
+		contact = distribution["Author-email"] or ""
 		author = contact.split("<")[0].strip().strip('"') or AUTHOR
 
 	return {
-		"name": distribution.get("Name") or NAME,
-		"version": distribution.get("Version") or VERSION,
+		"name": distribution["Name"] or NAME,
+		"version": distribution["Version"] or VERSION,
 		"author": author,
 	}
 

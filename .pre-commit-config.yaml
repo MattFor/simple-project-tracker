@@ -1,0 +1,40 @@
+default_install_hook_types: [ pre-commit, pre-push ]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+        exclude: ^man/
+      - id: mixed-line-ending
+        args: [ --fix=lf ]
+      - id: trailing-whitespace
+        exclude: ^man/
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.3
+    hooks:
+      - id: ruff-check
+        args: [ --fix ]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: basedpyright
+        name: basedpyright
+        entry: basedpyright
+        language: system
+        types: [ python ]
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        entry: python -m pytest
+        language: system
+        types: [ python ]
+        pass_filenames: false
+        stages: [ pre-push ]

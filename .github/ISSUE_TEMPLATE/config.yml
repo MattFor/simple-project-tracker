@@ -1,0 +1,10 @@
+blank_issues_enabled: true
+
+contact_links:
+  - name: Question
+    url: https://github.com/MattFor/simple-project-tracker/discussions
+    about: Ask how something works, or how to configure it.
+
+  - name: Security issue
+    url: https://github.com/MattFor/simple-project-tracker/security/advisories/new
+    about: Report a vulnerability privately please.

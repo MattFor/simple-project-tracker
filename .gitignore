@@ -1,14 +1,24 @@
 .idea
 .venv
+venv
+.vscode
 
 data.pkl
+data.pkl.undo
 data.pkl.corrupt-*
 
 __pycache__
+*.py[cod]
+
 .ruff_cache
 .pytest_cache
+.mypy_cache
+
+build/
+dist/
+*.egg-info/
 
 my_settings.toml
 
-# Going to release this on xbps
+# For later...
 packaging

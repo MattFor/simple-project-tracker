@@ -7,17 +7,20 @@ from typing import Any
 from pathlib import Path
 from collections.abc import Callable, Iterable
 
-from tracker.ui.ansi import C
+from tracker.ui.ansi import C, markup
 from tracker.config.settings import Settings
 from tracker.core.inspect import detect_manifest
 from tracker.core.models import Project, Projects
 
 from tracker.util.text import (
+	abbreviate,
 	flatten,
 	pad,
 	parse_time,
 	relative_time,
+	shorten,
 	truncate,
+	visible_length,
 	wrap,
 )
 
@@ -113,19 +116,19 @@ def column_separator(settings: Settings) -> str:
 	return separator
 
 
-def layout(settings: Settings) -> tuple[list[Segment], bool]:
+def layout(settings: Settings) -> list[Segment]:
 	template = str(settings.get("display.format", "") or "")
 
 	if template.strip():
 		segments = parse_format(template)
 
 		if any(kind == "field" for kind, _, _ in segments):
-			return segments, True
+			return segments
 
 	columns = visible_columns(settings)
 
 	if not columns:
-		return [], False
+		return []
 
 	separator = column_separator(settings)
 	built: list[Segment] = []
@@ -136,7 +139,25 @@ def layout(settings: Settings) -> tuple[list[Segment], bool]:
 
 		built.append(("field", column, "<"))
 
-	return built, False
+	return built
+
+
+def project_name(path: str, settings: Settings) -> str:
+	name = Path(path).name
+
+	width = settings.get("display.name_max_width", 0)
+	style = str(settings.get("display.name_style", "truncate")).lower()
+
+	if not isinstance(width, int) or width <= 0 or style == "full":
+		return name
+
+	if len(name) <= width:
+		return name
+
+	if style == "abbreviate":
+		return abbreviate(name, width)
+
+	return shorten(name, width, str(settings.get("display.name_continuator", "...")))
 
 
 def status_colour(status: str, settings: Settings) -> str:
@@ -174,7 +195,7 @@ def cell(path: str, project: Project, column: str, settings: Settings, tid: int)
 		return str(project.get("id", "-"))
 
 	if column == "name":
-		return Path(path).name
+		return project_name(path, settings)
 
 	if column == "path":
 		if settings["output"]["absolute_paths"]:
@@ -192,7 +213,7 @@ def cell(path: str, project: Project, column: str, settings: Settings, tid: int)
 		return timestamp(str(project.get("last_used", "") or "never"), settings)
 
 	if column == "note":
-		return flatten(note_of(project))
+		return note_text(project)
 
 	if column in ("version", "language"):
 		manifest = detect_manifest(path)
@@ -222,11 +243,22 @@ def note_of(project: Project) -> str:
 	return str(project.get("note", "") or "")
 
 
+def note_text(project: Project, base: str = "") -> str:
+	shown = markup(flatten(note_of(project)), base)
+
+	# Don't bleed into the rest of the file
+	if C.enabled and "\033[" in shown and not shown.endswith(C.RESET):
+		shown += C.RESET
+
+	return shown
+
+
 #
 # Table
 #
 
 
+# noinspection shadowing-names
 def render_rows(
 	items: Iterable[tuple[str, Project]],
 	settings: Settings,
@@ -244,7 +276,7 @@ def render_rows(
 
 	temporary_ids = temporary_ids or {}
 
-	segments, templated = layout(settings)
+	segments = layout(settings)
 
 	fields = [name for kind, name, _ in segments if kind == "field"]
 	aligns = [align for kind, _, align in segments if kind == "field"]
@@ -279,12 +311,10 @@ def render_rows(
 		for path, project in items
 	]
 
-	label_width = show_headers or not templated
-
 	widths = [
 		max(
-			len(FIELD_HEADERS[field]) if label_width else 0,
-			*(len(row[2][index]) for row in rows),
+			len(FIELD_HEADERS[field]) if show_headers else 0,
+			*(visible_length(row[2][index]) for row in rows),
 		)
 		for index, field in enumerate(fields)
 	]
@@ -299,17 +329,16 @@ def render_rows(
 		for index, value in enumerate(values):
 			values[index] = truncate(value, widths[index])
 
-	# noinspection shadowing-names
-	def compose(values: list[str], render: Callable[[str, int], str]) -> str:
+	def compose(cells: list[str], render: Callable[[str, int], str]) -> str:
 		pieces: list[str] = []
 		position = 0
 
-		for kind, text, _ in segments:
+		for kind, literal, _ in segments:
 			if kind == "literal":
-				pieces.append(text)
+				pieces.append(literal)
 				continue
 
-			pieces.append(render(values[position], position))
+			pieces.append(render(cells[position], position))
 			position += 1
 
 		return "".join(pieces)
@@ -326,7 +355,7 @@ def render_rows(
 	notes: dict[str, tuple[str, bool]] = {}
 
 	for path, project, _ in rows:
-		note = flatten(note_of(project))
+		note = note_text(project, "GRAY")
 
 		if not trailing_notes or not note:
 			continue
@@ -338,12 +367,16 @@ def render_rows(
 		if note_position == "inline":
 			inline = note_space >= MINIMUM_NOTE
 		else:
-			inline = note_space >= note_minimum and len(note) <= note_space
+			inline = note_space >= note_minimum and visible_length(note) <= note_space
 
 		notes[path] = (note, inline)
 
 	inline_width = max(
-		(min(len(note), note_space) for note, inline in notes.values() if inline),
+		(
+			min(visible_length(note), note_space)
+			for note, inline in notes.values()
+			if inline
+		),
 		default=0,
 	)
 
@@ -371,11 +404,11 @@ def render_rows(
 			lines.append(prefix + f"{C.GRAY}{rule.rstrip()}{C.RESET}")
 
 	for path, project, values in rows:
-		# noinspection shadowing-names,default-argument
-		def paint(value: str, index: int, project: Project = project) -> str:
+		# noinspection shadowing-names
+		def paint(value: str, index: int, owner: Project = project) -> str:
 			shown = pad(value, widths[index], aligns[index] == ">")
 
-			return colourise(shown, fields[index], project, settings)
+			return colourise(shown, fields[index], owner, settings)
 
 		line = compose(values, paint)
 
@@ -429,6 +462,7 @@ def print_projects(
 ) -> None:
 	from tracker.core.selection import (
 		filter_projects,
+		pin_numbering,
 		regex_projects,
 		search_projects,
 		sort_projects,
@@ -441,11 +475,8 @@ def print_projects(
 		return
 
 	ordered = sort_projects(projects, settings)
-	temporary_ids = {path: tid for tid, (path, _) in enumerate(ordered, 1)}
 
-	selected = dict(ordered)
-
-	selected = filter_projects(selected, settings["display"]["filter"])
+	selected = filter_projects(dict(ordered), settings["display"]["filter"])
 
 	for expression in options.get("filters", []):
 		selected = filter_projects(selected, [expression])
@@ -484,7 +515,10 @@ def print_projects(
 	if 0 < limit < len(items):
 		items = items[:limit]
 
-	for line in render_rows(items, settings, temporary_ids):
+	# The rows about to be printed are what a temporary ID points at
+	numbering = pin_numbering([path for path, _ in items], settings)
+
+	for line in render_rows(items, settings, numbering):
 		print(line)
 
 

@@ -86,7 +86,7 @@ def test_find_projects_detects_git_directories(tmp_path: Path):
 
 	found = find_projects(str(tmp_path), make_settings())
 
-	assert set(Path(path).name for path in found) == {"alpha", "beta"}
+	assert {Path(path).name for path in found} == {"alpha", "beta"}
 
 
 def test_find_projects_can_descend_into_projects(tmp_path: Path):
