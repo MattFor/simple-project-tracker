@@ -3,17 +3,23 @@ import os
 from fnmatch import fnmatch
 from pathlib import Path
 from datetime import datetime
-from typing import Callable
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from tracker.config.settings import Settings
+from tracker.core.identity import identity_of
+from tracker.core.labels import automatic_label
 from tracker.core.models import Project, Projects, UNKNOWN_TIME, get_id, new_project
+
+
+def matches_any(name: str, patterns: Iterable[str]) -> bool:
+	return any(fnmatch(name, pattern) for pattern in patterns if pattern)
 
 
 def get_last_touched_date(
 	path: str | os.PathLike[str],
 	ignore: Iterable[str] = (),
 	follow_symlinks: bool = False,
+	ignore_files: Iterable[str] = (),
 ) -> datetime | None:
 	root = str(path)
 
@@ -21,6 +27,8 @@ def get_last_touched_date(
 		return None
 
 	skip = set(ignore)
+	skip_files = [str(pattern) for pattern in ignore_files if pattern]
+
 	latest: float | None = None
 
 	stack: list[str] = [root]
@@ -41,7 +49,6 @@ def get_last_touched_date(
 						continue
 
 					if follow_symlinks:
-						# Guard against symlink loops
 						stats = entry.stat()
 						key = (stats.st_dev, stats.st_ino)
 
@@ -53,6 +60,9 @@ def get_last_touched_date(
 					stack.append(entry.path)
 					continue
 
+				if skip_files and matches_any(entry.name, skip_files):
+					continue
+
 				mtime = entry.stat(follow_symlinks=False).st_mtime
 
 			except OSError:
@@ -62,7 +72,6 @@ def get_last_touched_date(
 				latest = mtime
 
 	if latest is None:
-		# An empty project still has its own directory timestamp
 		try:
 			latest = os.stat(root).st_mtime
 		except OSError:
@@ -105,6 +114,30 @@ def excluded(path: str, patterns: Iterable[str]) -> bool:
 	return False
 
 
+def timestamp_filters(settings: Settings) -> tuple[list[str], list[str]]:
+	if not settings["scan"]["timestamps_skip_ignored"]:
+		return [], []
+
+	ignore: list[str] = settings["projects"]["ignore"]
+	ignore_files: list[str] = settings["projects"]["ignore_files"]
+
+	return list(ignore), list(ignore_files)
+
+
+def touched_at(path: str, settings: Settings) -> str:
+	ignore, ignore_files = timestamp_filters(settings)
+
+	return format_last_touched(
+		get_last_touched_date(
+			path,
+			ignore,
+			settings["scan"]["follow_symlinks"],
+			ignore_files,
+		),
+		settings["display"]["time_format"],
+	)
+
+
 def find_projects(
 	path: str | os.PathLike[str],
 	settings: Settings,
@@ -124,14 +157,10 @@ def find_projects(
 	detect_git: bool = settings["scan"]["detect_git"]
 	stop_at_project: bool = settings["scan"]["stop_at_project"]
 	follow_symlinks: bool = settings["scan"]["follow_symlinks"]
-	skip_ignored: bool = settings["scan"]["timestamps_skip_ignored"]
 
 	exclude: list[str] = settings["scan"]["exclude"]
 	ignore: list[str] = settings["projects"]["ignore"]
-	time_format: str = settings["display"]["time_format"]
 	default_status: str = settings["projects"]["default_status"]
-
-	timestamp_ignore = ignore if skip_ignored else ()
 
 	for current_root, dirs, _ in os.walk(root, followlinks=follow_symlinks):
 		current = Path(current_root)
@@ -152,24 +181,30 @@ def find_projects(
 
 			continue
 
-		last_touched = format_last_touched(
-			get_last_touched_date(project_path, timestamp_ignore, follow_symlinks),
-			time_format,
-		)
+		last_touched = touched_at(project_path, settings)
+		known = projects.get(project_path)
 
-		if project_path in projects:
-			projects[project_path]["last_touched"] = last_touched
+		if known is not None:
+			known["last_touched"] = last_touched
+
+			if not known.get("identity"):
+				known["identity"] = identity_of(project_path)
 
 		else:
-			projects[project_path] = new_project(
+			project = new_project(
 				project_path,
 				status=default_status,
 				last_touched=last_touched,
 				project_id=get_id(projects),
+				identity=identity_of(project_path),
 			)
 
+			project["status"] = automatic_label(project, settings) or default_status
+
+			projects[project_path] = project
+
 			if on_found is not None:
-				on_found(project_path, projects[project_path])
+				on_found(project_path, project)
 
 		if stop_at_project:
 			dirs[:] = []

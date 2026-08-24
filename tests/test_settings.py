@@ -149,3 +149,70 @@ def test_new_settings_are_known_and_validated():
 			continue
 
 		raise AssertionError(f"{key} accepted {value}")
+
+
+def test_the_shipped_file_and_the_defaults_agree():
+	from tracker.config import paths
+
+	shipped = tomllib.loads(
+		paths.bundled_file(paths.SETTINGS_NAME).read_text(encoding="utf-8")
+	)
+
+	reference = defaults()
+
+	example = {("daemon", "paths")}
+
+	for section, values in reference.items():
+		assert section in shipped, f"[{section}] is missing from settings.toml"
+
+		for key, value in values.items():
+			assert key in shipped[section], f"{section}.{key} is missing"
+
+			if (section, key) in example:
+				continue
+
+			assert shipped[section][key] == value, f"{section}.{key} disagrees"
+
+	for section, values in shipped.items():
+		assert section in reference, f"[{section}] is not a known section"
+
+		for key in values:
+			assert key in reference[section], f"{section}.{key} is not a known setting"
+
+
+def test_every_setting_can_be_overridden_from_the_command_line():
+	settings = make_settings()
+
+	for key, value in settings.items():
+		if isinstance(value, dict):
+			continue
+
+		assert settings.override(key, value).get(key) == value
+
+
+def test_a_table_is_never_written_back_as_one_line(tmp_path: Path):
+	path = tmp_path / "settings.toml"
+
+	_ = path.write_text(
+		"[projects]\nauto_status = false\n\n[projects.auto_status_rules]\ndev = 7\n"
+	)
+
+	before = path.read_text()
+	error = write_setting(path, "projects.auto_status_rules", {"dev": 1})
+
+	assert error is not None and "settings edit" in error
+	assert path.read_text() == before
+	assert tomllib.loads(path.read_text())["projects"]["auto_status_rules"] == {"dev": 7}
+
+
+def test_a_list_is_still_written(tmp_path: Path):
+	path = tmp_path / "settings.toml"
+
+	_ = path.write_text("[display]\nfilter = []\n\n[display.status_colours]\ndev = 1\n")
+
+	assert write_setting(path, "display.filter", ["-s:archive"]) is None
+
+	data = tomllib.loads(path.read_text())
+
+	assert data["display"]["filter"] == ["-s:archive"]
+	assert data["display"]["status_colours"] == {"dev": 1}

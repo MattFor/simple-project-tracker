@@ -155,6 +155,15 @@ def data_file(configured: str | None = None) -> Path:
 	return resolve(chosen, database_dir())
 
 
+def view_file() -> Path:
+	override = os.environ.get("TRACKER_VIEW")
+
+	if override:
+		return resolve(override)
+
+	return state_dir() / "view.json"
+
+
 def daemon_pid_file() -> Path:
 	return state_dir() / "daemon.pid"
 

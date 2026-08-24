@@ -1,25 +1,38 @@
 # Tracker
 
-Simple tracker that tracks the projects in your directories, their versions and allows you to track their
-status/completion progress.
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+A simple, but very customizable tracker to keep track of your projects, their states and
+your notes on them.
+
+```
+TID | ID | NAME                          | STATUS  | LAST TOUCHED | NOTE
+--- | -- | ----------------------------- | ------- | ------------ | ---------------------
+1   | 8  | tracker                       | dev     | 1m ago       | release 1.0.0 today
+2   | 3  | von-neumann-machine-simulator | dev     | 23m ago      | review saturday
+3   | 26 | discord-profile-studio        | stable  | 1h ago
+```
+
+## Contents
+
+- [Install](#install)
+- [Commands](#commands)
+- [Selecting projects](#selecting-projects)
+- [Configuration](#configuration)
+- [Development](#development)
+- [License](#license)
 
 ## Install
 
-As yourself, which points a launcher at the checkout and keeps the settings and the database next to the source:
-
 ```sh
-./install.sh
-./install.sh --daemon
+./install.sh             # ~/.local
+sudo ./install.sh        # /usr/local
+./install.sh --daemon    # also install the daemon autostart entry
 ./install.sh --uninstall
 ```
 
-Or, to install to /usr/local
-
-```sh
-sudo ./install.sh
-```
-
-Requires Python 3.11+ and nothing else.
+Python 3.11+. Then `t init ~/(your project directory)` to fill the database.
 
 ## Commands
 
@@ -28,90 +41,102 @@ Requires Python 3.11+ and nothing else.
 | `list`       | `l`, `ls`         | List projects, with search, regex, filters and setting overrides     |
 | `check`      | `c`, `cc`, `info` | Everything about a project: git state, size, language, version, note |
 | `add`        | `a`               | Track a project, or scan a directory and track what is inside        |
-| `remove`     | `rm`, `r`, `del`  | Stop tracking projects, nothing is deleted from disk                 |
+| `remove`     | `rm`, `r`, `del`  | Stop tracking projects (files untouched)                             |
 | `forget`     | `ignore`          | Stop tracking and keep scans from finding it again                   |
 | `edit`       | `e`               | Change a `status` or a `note`                                        |
-| `note`       | `n`               | Set a note, without naming the field                                 |
-| `status`     | `st`              | List statuses, set one, or move every project from one to another    |
+| `note`       | `n`, `sn`         | Set a note without naming the field                                  |
+| `status`     | `st`, `ss`        | List statuses, set one, or move every project from one to another    |
 | `init`       | `i`, `scan`       | Scan a directory and merge the result into the database              |
 | `path`       | `p`, `where`      | Print a project's path, e.g. `cd "$(t path tracker)"`                |
+| `undo`       | `u`, `revert`     | Take back the last change, undo again to put it back                 |
 | `stats`      | `summary`         | Totals, a breakdown by status, most and least recently touched       |
 | `settings`   | `s`, `config`     | Show, edit, get or set the configuration                             |
 | `completion` |                   | Print a shell completion script for bash, zsh or fish                |
 | `daemon`     | `d`, `bg`         | `start`, `stop`, `restart`, `status`, `log`, `run`                   |
 
-Commands that work on a project take it before or after the command, whichever reads better:
-
-```
-t edit 12 note review sunday
-t 12 edit note review sunday
-t 12 note review sunday
-t 12 n review sunday
-t tracker st current
-```
-
-`status` shortens to `s`/`st` and `note` to `n`/`nt`.
-
-Everything after a `--` is text rather than options or commands, for a note that starts with a dash or contains a
-command name:
-
-```
-t note 12 -- --verbose is not a flag here
-```
-
-### Selecting projects
-
-Anything that takes a project accepts an ID, a TID from the current view, a name, a path, or a range:
-
-```
-t check 12          # ID or TID 12
-t check i:12        # force the permanent ID, id:12 also works
-t check t:12        # force the temporary ID, tid:12 also works
-t check ./project   # a path, tab completion included
-t check s:blocked   # every project with that status
-t edit 3-7 status completed
-t edit 5+3 status shelf
-t edit t:3-7 status shelf
-t edit all status archived
-```
-
-### Tab completion
+The project goes before or after the command, whichever reads better, and a command fuses
+with its own action:
 
 ```sh
-eval "$(tracker completion bash)"   # ~/.bashrc
-eval "$(tracker completion zsh)"    # ~/.zshrc
-tracker completion fish > ~/.config/fish/completions/tracker.fish
+t 12 es blocked        # edit status  also: t edit 12 status blocked
+t 12 sn review sunday  # set note     also: t note 12 review sunday
+t dst                  # daemon status
+t sset ll 30           # settings set display.list_limit 30
 ```
 
-Completes command names and tracked project names, for both `tracker` and `t`.
+A bare word defaults to a project lookup.
+
+```sh
+t tra          # the check view for tracker
+t stable       # nothing is called that, so every stable project
+t all          # everything, no limit
+```
+
+For more information do: `t help`, `t help <command>` or `t help <topic>`. The full guide
+is within `man tracker`.
+
+## Selecting projects
+
+| Selector    | Means                                                     |
+|-------------|-----------------------------------------------------------|
+| `12`        | ID or TID 12                                              |
+| `i:12`      | The permanent ID, `id:` and `#12` too                     |
+| `t:12`      | The temporary ID, `tid:`, `@12` and `:12` too             |
+| `3-7`,`5+3` | A range, either direction, or a project and the next few  |
+| `s:blocked` | Every project with that status, `st:` and `status:` too   |
+| `name`      | Exact or partial name, or a path, tab completion included |
+| `all`       | Every tracked project                                     |
+
+A temporary ID is the index of the latest output.
+
+When a partial name matches several projects, it's settled by
+`projects.conflict_resolution_preference`.
 
 ## Configuration
 
-Installed, tracker reads `~/.config/tracker/settings.toml` and falls back to the defaults shipped with the package.
-`t settings edit` and `t settings set` create your copy the first time they run, so nothing is ever written inside the
-install prefix.
-
-From a checkout it reads `my_settings.toml`, then `tracker/share/settings.toml`, and keeps `data.pkl` in the checkout.
-
 ```sh
-t settings                                  # show everything
-t settings set display.list_limit 30        # rewrites that one line
-t settings edit                             # open in $EDITOR
-t list sorting.by=name output.compact=true  # override for one command only
+t settings                    # everything (default deviations marked)
+t settings edit               # open in $EDITOR
+t sset list_limit 30          # rewrites that one line
+t list ll=5 rt=true           # override for one command only
 ```
 
-## Roadmap
+A setting can be named in full, by its bare name, by a prefix, by the start of every word
+or by its initials, with the section shortening the same way: `display.list_limit`,
+`list_limit`, `list_lim`, `l_l`, `ll`, `d.ll`. Ambiguities are reported.
 
-- [ ] upload to xbps
-- [ ] possible zoxide integration for conflicting matches
+| Setting                             | What it does                                                |
+|-------------------------------------|-------------------------------------------------------------|
+| `display.filter`                    | Filters every listing, e.g. `["-s:archive"]`                |
+| `display.columns`, `display.format` | Which columns, or a row layout of your own                  |
+| `display.relative_times`            | `2 days ago` instead of a timestamp                         |
+| `display.name_max_width`            | Shorten long names, `truncate` or `abbreviate`              |
+| `sorting.by`, `sorting.direction`   | `last_touched`, `last_used`, `name`, `status`, `id`, `path` |
+| `projects.ignore`, `.ignore_files`  | Directories and files that never count as your own work     |
+| `projects.auto_status`              | Status from how long ago a project was touched              |
+| `scan.detect_moves`                 | A moved project keeps its entry instead of looking deleted  |
+| `daemon.paths`, `daemon.interval`   | What the background scanner watches, and how often          |
 
+Notes can colour themselves: `t note 12 {red}broken{/} since friday`.
+
+## Development
+
+```sh
+make dev      # editable install plus ruff, basedpyright, pytest
+make check    # format, lint, types and tests (what CI runs)
+```
 
 ## Disclosure
 
-LLMs were used to write the man page, help section and checked for annotation errors, but the output was then manually reviewed.
+LLMs were used to:
+
+- write the help section
+- write the man page
+- check for critical issues and annotation errors
+
+HOWEVER, the output was then manually reviewed and issues were fixed by a human.
 
 ## License
 
-MIT [LICENSE](LICENSE)
-
-By MattFor
+MIT [LICENSE](LICENSE).  
+By MattFor.

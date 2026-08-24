@@ -5,9 +5,9 @@ import shutil
 import subprocess
 
 from pathlib import Path
-from collections.abc import Iterable
 from datetime import datetime
 from functools import lru_cache
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from tracker.util.files import load_toml
@@ -45,6 +45,7 @@ def _git(path: str, *arguments: str) -> str | None:
 			capture_output=True,
 			text=True,
 			timeout=GIT_TIMEOUT,
+			check=False,
 		)
 	except (OSError, subprocess.SubprocessError):
 		return None

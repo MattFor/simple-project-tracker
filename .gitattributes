@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+*.pkl binary
+
+*.py    text diff=python
+*.toml  text
+*.md    text diff=markdown
+*.1     text
+install.sh text eol=lf
+
+tests/** linguist-language=Python
+man/**   linguist-documentation

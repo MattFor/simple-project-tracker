@@ -1,16 +1,14 @@
 import sys
 
-from typing import Any, Callable
+from typing import Any
 
-from tracker.cli import commands
-from tracker.cli.commands import Context
-from tracker.config.settings import Settings
-from tracker.core.storage import load_data
 from tracker.ui import ansi
+from tracker.cli import commands
 from tracker.ui.ansi import C
+from tracker.core.storage import load_data
+from tracker.config.settings import Settings
 from tracker.ui.render import print_projects
-
-Handler = Callable[[Context, list[str]], int]
+from tracker.cli.commands import Context, Handler
 
 COMMANDS: dict[str, str] = {
 	"version": "version",
@@ -40,8 +38,10 @@ COMMANDS: dict[str, str] = {
 	"e": "edit",
 	"note": "note",
 	"n": "note",
+	"sn": "note",
 	"status": "status",
 	"st": "status",
+	"ss": "status",
 	"init": "init",
 	"i": "init",
 	"scan": "init",
@@ -62,6 +62,9 @@ COMMANDS: dict[str, str] = {
 	"stats": "stats",
 	"stat": "stats",
 	"summary": "stats",
+	"undo": "undo",
+	"u": "undo",
+	"revert": "undo",
 }
 
 HANDLERS: dict[str, Handler] = {
@@ -77,6 +80,7 @@ HANDLERS: dict[str, Handler] = {
 	"daemon": commands.command_daemon,
 	"path": commands.command_path,
 	"stats": commands.command_stats,
+	"undo": commands.command_undo,
 	"show": commands.command_show,
 	"note": commands.command_note,
 	"status": commands.command_status,
@@ -91,6 +95,7 @@ SUBJECT = frozenset(
 )
 
 ACTIONS: dict[str, frozenset[str]] = {
+	"edit": frozenset(commands.FIELD_ALIASES),
 	"forget": frozenset({"list", "l", "show", "clear", "c", "reset", "allow"}),
 	"settings": frozenset(
 		{"edit", "e", "path", "p", "where", "w", "get", "g", "set", "s"}
@@ -117,12 +122,17 @@ ACTIONS: dict[str, frozenset[str]] = {
 	),
 }
 
+# Words a command keeps for itself instead of reading them as another command
+KEYWORDS: dict[str, frozenset[str]] = {"list": commands.LIMIT_KEYWORDS}
+
 LITERAL = "--"
 
 VERBOSE_FLAGS = frozenset({"verbose", "vv"})
+
 YES_FLAGS = frozenset({"yes", "y", "force", "f"})
-NO_COLOUR_FLAGS = frozenset({"no-color", "no-colour", "nocolor", "nocolour"})
+
 COLOUR_FLAGS = frozenset({"color", "colour"})
+NO_COLOUR_FLAGS = frozenset({"no-color", "no-colour", "nocolor", "nocolour"})
 
 
 def normalise(token: str) -> str:
@@ -131,6 +141,16 @@ def normalise(token: str) -> str:
 
 def command_of(token: str) -> str | None:
 	return COMMANDS.get(normalise(token))
+
+
+def greedy(token: str) -> bool:
+	name = command_of(token)
+
+	if name is None:
+		pair = fuse(token)
+		name = pair[0] if pair else None
+
+	return name in GREEDY
 
 
 def fuse(token: str) -> tuple[str, str] | None:
@@ -177,6 +197,8 @@ def expand(args: list[str]) -> list[str]:
 			expanded.append(token)
 			continue
 
+		literal = pair[0] in GREEDY
+
 		expanded.extend(pair)
 
 	return expanded
@@ -203,7 +225,6 @@ def help_request(args: list[str]) -> list[str] | None:
 			following = index + 1
 
 			if following == len(args) - 1 and command_of(args[following]) == "help":
-				# noinspection bad-return
 				return [name]
 
 			return None
@@ -226,8 +247,11 @@ def split(args: list[str]) -> list[tuple[str, list[str]]]:
 		del args[literal]
 
 	# noinspection shadowing-names
-	def command_at(index: int) -> str | None:
+	def command_at(index: int, owner: str = "") -> str | None:
 		if index >= literal:
+			return None
+
+		if normalise(args[index]) in KEYWORDS.get(owner, frozenset()):
 			return None
 
 		return command_of(args[index])
@@ -263,7 +287,7 @@ def split(args: list[str]) -> list[tuple[str, list[str]]]:
 			collected.append(args[index])
 			index += 1
 
-		while index < len(args) and command_at(index) is None:
+		while index < len(args) and command_at(index, name) is None:
 			collected.append(args[index])
 			index += 1
 
@@ -293,7 +317,7 @@ def extract_flags(args: list[str]) -> tuple[list[str], dict[str, Any]]:
 			remaining.append(token)
 			continue
 
-		if command_of(token) in GREEDY:
+		if greedy(token):
 			greedy_reached = True
 
 		key = normalise(token)

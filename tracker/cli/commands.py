@@ -4,28 +4,30 @@ import time
 
 from typing import Any
 from pathlib import Path
+from functools import wraps
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from tracker.core import daemon
 from tracker.config import paths
 from tracker.config.writer import write_setting
+from tracker.config.keys import known_keys, resolve_key
 from tracker.config.metadata import project as metadata
 from tracker.config.defaults import SECTION_TITLES, defaults
 from tracker.config.settings import Settings, parse_setting_value
 
-from tracker.core.discovery import (
-	find_projects,
-	format_last_touched,
-	get_last_touched_date,
-	is_project,
-)
+from tracker.core.identity import apply_moves, identity_of
+from tracker.core.labels import apply_labels, automatic_label
+from tracker.core.discovery import find_projects, is_project, touched_at
 
 from tracker.ui.ansi import C
+from tracker.ui.ask import confirm as ask
 from tracker.ui.details import print_details
 from tracker.ui.help import print_help, print_topic
 from tracker.core.storage import data_path, save_data
 from tracker.util.text import parse_time, relative_time
 from tracker.core.models import Projects, get_id, new_project
+
 from tracker.ui.render import (
 	format_project,
 	print_projects,
@@ -35,7 +37,9 @@ from tracker.ui.render import (
 )
 
 from tracker.core.selection import (
+	ALL_SELECTORS,
 	parse_filter,
+	pin_projects,
 	resolve_selection,
 	select_projects,
 	sort_projects,
@@ -51,33 +55,65 @@ class Context:
 	verbose: bool = False
 	assume_yes: bool = False
 	options: dict[str, Any] = field(default_factory=dict)
+	pending: bool = False
 
 	def log(self, message: str) -> None:
 		if self.verbose:
 			print(f"{C.GRAY}[verbose] {message}{C.RESET}")
 
-	def save(self) -> bool:
-		return save_data(self.data, self.settings)
+	def save(self, *, undoable: bool = True) -> bool:
+		self.pending = False
+
+		return save_data(self.data, self.settings, undoable=undoable)
 
 	def temporary_ids(self) -> dict[str, int]:
 		return temporary_ids(self.data, self.settings)
 
+	def pin(self, projects: Projects) -> dict[str, int]:
+		return pin_projects(projects, self.settings)
 
-def mark_used(context: Context, selected: Projects, *, save: bool = True) -> bool:
-	if not selected or not context.settings["projects"]["track_usage"]:
-		return False
+	def mark_used(self, selected: Projects) -> bool:
+		if not selected or not self.settings["projects"]["track_usage"]:
+			return False
 
-	stamp = time.strftime(context.settings["display"]["time_format"])
+		stamp = time.strftime(self.settings["display"]["time_format"])
 
-	for project in selected.values():
-		project["last_used"] = stamp
+		for project in selected.values():
+			project["last_used"] = stamp
+			project["uses"] = int(project.get("uses", 0)) + 1
 
-	return context.save() if save else True
+		self.pending = True
+
+		return True
+
+	def select(self, selectors: list[str], *, quiet: bool = False) -> Projects:
+		selected = select_projects(self.data, self.settings, selectors, quiet=quiet)
+
+		_ = self.mark_used(selected)
+
+		return selected
+
+
+Handler = Callable[[Context, list[str]], int]
+
+
+def marks_used(handler: Handler) -> Handler:
+	@wraps(handler)
+	def wrapper(context: Context, args: list[str]) -> int:
+		status = handler(context, args)
+
+		# Looking at a project is not a change worth undoing
+		if context.pending and not context.save(undoable=False):
+			return 1
+
+		return status
+
+	return wrapper
 
 
 def missing_project(command: str) -> int:
 	print(f"[ERROR] {command} requires a project")
-	hint = "a bare #5 is a comment to the shell, write id:5 or quote it as '#5'"
+	hint = "a bare #5 is a comment to the shell; please write id:5 or quote it as '#5'"
 
 	print(f"{C.GRAY}        {hint}{C.RESET}")
 
@@ -100,6 +136,36 @@ def suggest_command(args: list[str]) -> None:
 		print(f"{C.GRAY}        maybe '{COMMANDS[matches[0]]}'?{C.RESET}")
 
 
+def as_statuses(args: list[str]) -> list[str]:
+	return [f"s:{arg}" for arg in args if ":" not in arg and "=" not in arg]
+
+
+def setting_key(name: str) -> str | None:
+	resolved, candidates = resolve_key(name)
+
+	if resolved is not None:
+		return resolved
+
+	if candidates:
+		print(f"[ERROR] '{name}' could be any of these settings:")
+
+		for candidate in candidates:
+			print(f"  {candidate}")
+
+		return None
+
+	print(f"[ERROR] unknown setting '{name}'")
+
+	from difflib import get_close_matches
+
+	close = get_close_matches(name.lower(), known_keys(), n=1, cutoff=0.5)
+
+	if close:
+		print(f"{C.GRAY}        maybe '{close[0]}'?{C.RESET}")
+
+	return None
+
+
 def select_all_or_nothing(
 	context: Context, command: str, args: list[str]
 ) -> Projects | None:
@@ -118,23 +184,31 @@ def select_all_or_nothing(
 
 
 def confirm(context: Context, question: str) -> bool:
-	if context.assume_yes:
-		return True
+	return ask(
+		question,
+		assume_yes=context.assume_yes,
+		required=bool(context.settings["projects"]["confirm_destructive"]),
+	)
 
-	if not context.settings["projects"]["confirm_destructive"]:
-		return True
 
-	if not sys.stdin.isatty():
-		print("[ERROR] refusing to run without confirmation; pass --yes")
-		return False
+def plural(count: int, word: str = "project") -> str:
+	return f"{count} {word}{'s' if count != 1 else ''}"
 
-	try:
-		answer = input(f"{question} [y/N] ").strip().lower()
-	except (EOFError, KeyboardInterrupt):
-		print()
-		return False
 
-	return answer in ("y", "yes")
+def show_rows(
+	context: Context,
+	projects: Projects,
+	prefix: str = "  ",
+	numbering: dict[str, int] | None = None,
+) -> None:
+	for line in render_rows(
+		sort_projects(projects, context.settings),
+		context.settings,
+		numbering if numbering is not None else context.temporary_ids(),
+		show_headers=False,
+		prefix=prefix,
+	):
+		print(line)
 
 
 #
@@ -170,6 +244,8 @@ def command_help(context: Context, args: list[str]) -> int:
 # Listing
 #
 
+LIMIT_KEYWORDS = frozenset({"all", "a", "max", "full", "*"})
+
 
 def command_list(context: Context, args: list[str]) -> int:
 	settings = context.settings
@@ -189,7 +265,12 @@ def command_list(context: Context, args: list[str]) -> int:
 			continue
 
 		if "=" in stripped and not stripped.startswith(("+", "-")):
-			key, _, raw = stripped.partition("=")
+			name, _, raw = stripped.partition("=")
+
+			key = setting_key(name)
+
+			if key is None:
+				return 1
 
 			try:
 				settings = settings.override(key, parse_setting_value(raw))
@@ -208,6 +289,11 @@ def command_list(context: Context, args: list[str]) -> int:
 
 		if token.isdigit():
 			settings = settings.override("display.list_limit", int(token))
+			index += 1
+			continue
+
+		if stripped.lower() in LIMIT_KEYWORDS:
+			settings = settings.override("display.list_limit", 0)
 			index += 1
 			continue
 
@@ -230,17 +316,17 @@ def command_list(context: Context, args: list[str]) -> int:
 	return 0
 
 
+@marks_used
 def command_check(context: Context, args: list[str]) -> int:
 	if not args:
 		return missing_project("check")
 
-	selected = select_projects(context.data, context.settings, args)
+	selected = context.select(args)
 
 	if not selected:
 		return 1
 
-	# noinspection shadowing-names
-	temporary_ids = context.temporary_ids()
+	numbering = context.pin(selected)
 
 	for index, (path, project) in enumerate(selected.items()):
 		if index:
@@ -250,40 +336,75 @@ def command_check(context: Context, args: list[str]) -> int:
 			path,
 			project,
 			context.settings,
-			temporary_ids.get(path, 0),
+			numbering.get(path, 0),
 			verbose=context.verbose,
 		)
 
-	_ = mark_used(context, selected)
-
 	return 0
 
 
+@marks_used
 def command_show(context: Context, args: list[str]) -> int:
-	selected = select_projects(context.data, context.settings, args)
+	if not args:
+		print_projects(context.data, context.settings)
+		return 0
+
+	if len(args) == 1 and args[0].lower() in ALL_SELECTORS:
+		return command_list(context, ["0"])
+
+	selected, unmatched = resolve_selection(
+		context.data, context.settings, args, quiet=True
+	)
 
 	if not selected:
+		# A word that names no project may be a status
+		selected = context.select(as_statuses(args), quiet=True)
+		unmatched = []
+
+	if not selected:
+		_ = context.select(args)
+
 		suggest_command(args)
+
 		return 1
 
-	# noinspection shadowing-names
-	temporary_ids = context.temporary_ids()
+	_ = context.mark_used(selected)
+
+	if unmatched:
+		_ = resolve_selection(context.data, context.settings, unmatched)
+
+	numbering = context.pin(selected)
+
+	if len(selected) == 1:
+		path, project = next(iter(selected.items()))
+
+		print_details(
+			path,
+			project,
+			context.settings,
+			numbering.get(path, 0),
+			verbose=context.verbose,
+		)
+
+		return 0
 
 	for line in render_rows(
-		selected.items(), context.settings, temporary_ids, show_headers=False
+		sort_projects(selected, context.settings),
+		context.settings,
+		numbering,
+		show_headers=False,
 	):
 		print(line)
 
-	_ = mark_used(context, selected)
-
 	return 0
 
 
+@marks_used
 def command_path(context: Context, args: list[str]) -> int:
 	if not args:
 		return missing_project("path")
 
-	selected = select_projects(context.data, context.settings, args)
+	selected = context.select(args)
 
 	if not selected:
 		return 1
@@ -291,7 +412,37 @@ def command_path(context: Context, args: list[str]) -> int:
 	for path in selected:
 		print(path)
 
-	_ = mark_used(context, selected)
+	return 0
+
+
+def command_undo(context: Context, args: list[str]) -> int:
+	del args
+
+	from tracker.core.undo import differences, restore
+
+	swapped = restore(context.settings)
+
+	if swapped is None:
+		print("nothing to undo")
+
+		return 1
+
+	before, after = swapped
+
+	added, removed, changed = differences(before, after)
+
+	print(f"undone, {plural(len(after))} tracked")
+
+	parts = [
+		f"{count} {word}"
+		for count, word in ((added, "added"), (removed, "removed"), (changed, "changed"))
+		if count
+	]
+
+	if parts:
+		print(f"  {C.GRAY}{', '.join(parts)} back{C.RESET}")
+
+	print(f"  {C.GRAY}undo again to put it back{C.RESET}")
 
 	return 0
 
@@ -329,7 +480,6 @@ def command_stats(context: Context, args: list[str]) -> int:
 		painted = C.paint(status.ljust(14), status_colour(status, settings))
 		print(f"  {painted}{count}")
 
-	# noinspection shadowing-names
 	def stamps(field_name: str) -> list[tuple[Any, str]]:
 		found = [
 			(parse_time(str(project.get(field_name, "")), time_format), path)
@@ -338,7 +488,6 @@ def command_stats(context: Context, args: list[str]) -> int:
 
 		return [(moment, path) for moment, path in found if moment is not None]
 
-	# noinspection shadowing-names
 	def line(label: str, entry: tuple[Any, str]) -> None:
 		when = relative_time(entry[0], short=short)
 
@@ -370,6 +519,64 @@ def command_stats(context: Context, args: list[str]) -> int:
 #
 
 
+def follow_moves(
+	context: Context, appeared: list[str], root: Path | None = None
+) -> list[tuple[str, str]]:
+	if not context.settings["scan"]["detect_moves"]:
+		return []
+
+	gone = [
+		path
+		for path in context.data
+		if path not in appeared
+		and not Path(path).is_dir()
+		and (root is None or Path(path).is_relative_to(root))
+	]
+
+	moved = apply_moves(context.data, appeared, gone)
+
+	for _, arrival in moved:
+		appeared.remove(arrival)
+
+	return moved
+
+
+@dataclass
+class Scan:
+	added: list[str] = field(default_factory=list)
+	moved: list[tuple[str, str]] = field(default_factory=list)
+	refreshed: int = 0
+
+
+def scan_into(context: Context, root: Path) -> Scan:
+	known = set(context.data)
+
+	_ = find_projects(str(root), context.settings, context.data)
+
+	appeared = [path for path in context.data if path not in known]
+	moved = follow_moves(context, appeared, root)
+
+	scanned = {
+		path: project
+		for path, project in context.data.items()
+		if Path(path).is_relative_to(root)
+	}
+
+	_ = apply_labels(scanned, context.settings)
+
+	return Scan(appeared, moved, len(scanned) - len(appeared) - len(moved))
+
+
+def report_moves(moved: list[tuple[str, str]]) -> None:
+	if not moved:
+		return
+
+	print(f"moved {plural(len(moved))}")
+
+	for old, new in moved:
+		print(f"  {C.GRAY}{old}{C.RESET} -> {new}")
+
+
 def command_add(context: Context, args: list[str]) -> int:
 	if not args:
 		print("[ERROR] add requires a path")
@@ -388,15 +595,10 @@ def command_add(context: Context, args: list[str]) -> int:
 		print("[ERROR] the path is not a directory")
 		return 1
 
-	status = args[1] if len(args) > 1 else settings["projects"]["default_status"]
+	status = args[1] if len(args) > 1 else ""
 	note = " ".join(args[2:]) if len(args) > 2 else ""
 
 	time_format: str = settings["display"]["time_format"]
-	ignore = (
-		settings["projects"]["ignore"]
-		if settings["scan"]["timestamps_skip_ignored"]
-		else ()
-	)
 
 	if is_project(path, settings["scan"]["detect_git"]):
 		project_path = str(path)
@@ -405,66 +607,89 @@ def command_add(context: Context, args: list[str]) -> int:
 			print("[ERROR] this project is already tracked")
 			print(
 				format_project(
-					project_path, data[project_path], settings, context.temporary_ids()
+					project_path,
+					data[project_path],
+					settings,
+					context.pin({project_path: data[project_path]}),
 				)
 			)
 			return 1
 
-		data[project_path] = new_project(
+		project = new_project(
 			project_path,
-			status=status,
-			last_touched=format_last_touched(
-				get_last_touched_date(project_path, ignore), time_format
-			),
+			status=status or settings["projects"]["default_status"],
+			last_touched=touched_at(project_path, settings),
 			note=note,
 			project_id=get_id(data),
 			first_seen=time.strftime(time_format),
+			identity=identity_of(project_path),
 		)
+
+		if not status:
+			project["status"] = automatic_label(project, settings) or project["status"]
+
+		data[project_path] = project
+
+		moved = follow_moves(context, [project_path])
+
+		if moved:
+			if status:
+				data[project_path]["status"] = status
+
+			if note:
+				data[project_path]["note"] = note
 
 		if not context.save():
 			return 1
 
-		print(
-			f"added {format_project(project_path, data[project_path], settings, context.temporary_ids())}"
+		row = format_project(
+			project_path,
+			data[project_path],
+			settings,
+			context.pin({project_path: data[project_path]}),
 		)
+
+		if moved:
+			print(f"moved {row}")
+			print(f"  {C.GRAY}{moved[0][0]}{C.RESET} -> {project_path}")
+		else:
+			print(f"added {row}")
 
 		return 0
 
 	print(f"scanning {path} for projects...")
 
-	known = set(data)
+	scan = scan_into(context, path)
 
-	_ = find_projects(str(path), settings, data)
+	added, moved = scan.added, scan.moved
 
-	added = [project_path for project_path in data if project_path not in known]
+	report_moves(moved)
 
 	if not added:
-		print("no new projects found")
-		return 0
+		if not moved:
+			print("no new projects found")
+
+		return 0 if not moved or context.save() else 1
 
 	stamp = time.strftime(time_format)
 
 	for project_path in added:
-		data[project_path]["status"] = status
-		data[project_path]["note"] = note
+		if status:
+			data[project_path]["status"] = status
+
+		if note:
+			data[project_path]["note"] = note
+
 		data[project_path]["first_seen"] = stamp
 
 	if not context.save():
 		return 1
 
-	print(f"added {len(added)} project{'s' if len(added) != 1 else ''}")
+	print(f"added {plural(len(added))}")
 
-	# noinspection shadowing-names
-	temporary_ids = context.temporary_ids()
+	fresh = {path_: data[path_] for path_ in added}
 
-	for line in render_rows(
-		[(project_path, data[project_path]) for project_path in added],
-		settings,
-		temporary_ids,
-		show_headers=False,
-		prefix="  ",
-	):
-		print(line)
+	show_rows(context, fresh, numbering=context.pin(fresh))
 
 	return 0
 
@@ -481,51 +706,36 @@ def command_init(context: Context, args: list[str]) -> int:
 
 	print(f"scanning {path}...")
 
-	known = set(context.data)
-
 	started = time.monotonic()
 
-	_ = find_projects(str(path), settings, context.data)
+	scan = scan_into(context, path)
 
-	added = [project_path for project_path in context.data if project_path not in known]
-	updated = len(context.data) - len(known) - len(added)
+	added, moved = scan.added, scan.moved
 
 	context.log(f"scan took {time.monotonic() - started:.2f}s")
 
-	if not added:
-		print(f"no new projects found ({len(context.data)} tracked)")
-
-		if context.data:
-			_ = context.save()
-
-		return 0
+	report_moves(moved)
 
 	stamp = time.strftime(settings["display"]["time_format"])
 
 	for project_path in added:
 		context.data[project_path]["first_seen"] = stamp
 
-	if not context.save():
+	if context.data and not context.save():
 		return 1
 
-	print(
-		f"added {len(added)} project{'s' if len(added) != 1 else ''}, {len(context.data)} tracked"
-	)
+	if added:
+		print(f"added {plural(len(added))}, {len(context.data)} tracked")
+	else:
+		print(f"no new projects found ({len(context.data)} tracked)")
 
-	if updated:
-		print(f"refreshed {updated}")
+	if scan.refreshed > 0:
+		print(f"refreshed {scan.refreshed}")
 
-	# noinspection shadowing-names
-	temporary_ids = context.temporary_ids()
+	if added:
+		fresh = {path_: context.data[path_] for path_ in added}
 
-	for line in render_rows(
-		[(project_path, context.data[project_path]) for project_path in added],
-		settings,
-		temporary_ids,
-		show_headers=False,
-		prefix="  ",
-	):
-		print(line)
+		show_rows(context, fresh, numbering=context.pin(fresh))
 
 	return 0
 
@@ -542,7 +752,7 @@ def command_remove(context: Context, args: list[str]) -> int:
 			print("no projects to remove")
 			return 0
 
-		if not confirm(context, f"remove all {len(data)} tracked projects?"):
+		if not confirm(context, f"remove all {plural(len(data))}?"):
 			print("cancelled")
 			return 1
 
@@ -561,15 +771,16 @@ def command_remove(context: Context, args: list[str]) -> int:
 	if selected is None:
 		return 1
 
-	# noinspection shadowing-names
-	temporary_ids = context.temporary_ids()
-
-	if len(selected) > 1 and not confirm(context, f"remove {len(selected)} projects?"):
+	if len(selected) > 1 and not confirm(context, f"remove {plural(len(selected))}?"):
 		print("cancelled")
 		return 1
 
 	lines = render_rows(
-		selected.items(), settings, temporary_ids, show_headers=False, prefix="  "
+		sort_projects(selected, settings),
+		settings,
+		context.temporary_ids(),
+		show_headers=False,
+		prefix="  ",
 	)
 
 	for project_path in selected:
@@ -581,7 +792,7 @@ def command_remove(context: Context, args: list[str]) -> int:
 	if len(selected) == 1:
 		print(f"removed {lines[0].strip()}")
 	else:
-		print(f"removed {len(selected)} projects")
+		print(f"removed {plural(len(selected))}")
 
 		for line in lines:
 			print(line)
@@ -603,18 +814,23 @@ FIELD_ALIASES = {
 }
 
 
+@marks_used
 def command_edit(context: Context, args: list[str]) -> int:
 	if not args:
 		return missing_project("edit")
 
 	settings = context.settings
 
-	selected = select_projects(context.data, settings, [args[0]])
+	if len(args) < 2:
+		print(f"[ERROR] edit requires a field: {', '.join(EDIT_FIELDS)}")
+		return 1
+
+	selected = context.select([args[0]])
 
 	if not selected:
 		return 1
 
-	used = mark_used(context, selected, save=False)
+	numbering = context.temporary_ids()
 
 	changes: dict[str, tuple[str, str]] = {}
 	changed: Projects = {}
@@ -624,9 +840,9 @@ def command_edit(context: Context, args: list[str]) -> int:
 		field_name = FIELD_ALIASES.get(args[index].lower().strip("-"), "")
 
 		if not field_name:
-			print(
-				f"[ERROR] unknown field '{args[index]}', expected one of: {', '.join(EDIT_FIELDS)}"
-			)
+			known = ", ".join(EDIT_FIELDS)
+
+			print(f"[ERROR] unknown field '{args[index]}', expected one of: {known}")
 			return 1
 
 		if index + 1 >= len(args):
@@ -652,9 +868,8 @@ def command_edit(context: Context, args: list[str]) -> int:
 
 	if len(selected) > 1:
 		if not changed:
-			print(f"nothing changed, all {len(selected)} already matched")
-
-			return 1 if used and not context.save() else 0
+			print(f"nothing changed, all {plural(len(selected))} already matched")
+			return 0
 
 		if not context.save():
 			return 1
@@ -662,30 +877,22 @@ def command_edit(context: Context, args: list[str]) -> int:
 		untouched = len(selected) - len(changed)
 		skipped = f", {untouched} already matched" if untouched else ""
 
-		print(f"edited {len(changed)} project{'s' if len(changed) != 1 else ''}{skipped}")
+		print(f"edited {plural(len(changed))}{skipped}")
 
-		for line in render_rows(
-			sort_projects(changed, settings),
-			settings,
-			context.temporary_ids(),
-			show_headers=False,
-			prefix="  ",
-		):
-			print(line)
+		show_rows(context, changed, numbering=numbering)
 
 		return 0
 
 	if not changes:
 		print("nothing changed")
-
-		return 1 if used and not context.save() else 0
+		return 0
 
 	if not context.save():
 		return 1
 
 	path, project = next(iter(selected.items()))
 
-	print(f"edited {format_project(path, project, settings, context.temporary_ids())}")
+	print(f"edited {format_project(path, project, settings, numbering)}")
 
 	empty = '""'
 
@@ -832,12 +1039,12 @@ def command_forget(context: Context, args: list[str]) -> int:
 	if selected is None:
 		return 1
 
-	if len(selected) > 1 and not confirm(context, f"forget {len(selected)} projects?"):
+	if len(selected) > 1 and not confirm(context, f"forget {plural(len(selected))}?"):
 		print("cancelled")
 		return 1
 
 	lines = render_rows(
-		selected.items(),
+		sort_projects(selected, settings),
 		settings,
 		context.temporary_ids(),
 		show_headers=False,
@@ -859,7 +1066,7 @@ def command_forget(context: Context, args: list[str]) -> int:
 	if not save_exclusions(updated):
 		return 1
 
-	print(f"forgot {len(selected)} project{'s' if len(selected) != 1 else ''}")
+	print(f"forgot {plural(len(selected))}")
 
 	for line in lines:
 		print(line)
@@ -882,6 +1089,10 @@ def _completion_words(context: Context, prefix: str) -> None:
 		candidates.add(status)
 		candidates.add(f"s:{status}")
 		candidates.add(f"!s:{status}")
+
+	for key in known_keys():
+		candidates.add(key)
+		candidates.add(key.split(".")[-1])
 
 	lowered = prefix.lower()
 
@@ -937,6 +1148,11 @@ def _display_settings(context: Context) -> None:
 
 		print(f"{C.GRAY}{notice}{C.RESET}")
 
+	def label_of(key: str) -> str:
+		return key.replace("_", " ").title()
+
+	width = max((len(label_of(key.split(".")[-1])) for key in known_keys()), default=22)
+
 	for section, title in SECTION_TITLES.items():
 		data = settings.raw.get(section)
 
@@ -949,7 +1165,7 @@ def _display_settings(context: Context) -> None:
 		section_defaults: dict[str, Any] = reference.get(section, {})
 
 		for key, value in section_values.items():
-			label = key.replace("_", " ").title()
+			label = label_of(key)
 
 			if isinstance(value, list):
 				entries: list[Any] = value
@@ -962,7 +1178,7 @@ def _display_settings(context: Context) -> None:
 			changed = section_defaults.get(key, object()) != value
 			marker = f" {C.GRAY}(changed){C.RESET}" if changed else ""
 
-			print(f"  {label:<22} {C.YELLOW}{shown}{C.RESET}{marker}")
+			print(f"  {label:<{width}} {C.YELLOW}{shown}{C.RESET}{marker}")
 
 	for problem in settings.problems:
 		print(f"\n{C.YELLOW}[WARNING] {problem}{C.RESET}")
@@ -990,14 +1206,13 @@ def command_settings(context: Context, args: list[str]) -> int:
 			print("[ERROR] get requires a setting name")
 			return 1
 
-		for key in args[1:]:
-			value = settings.get(key)
+		for name in args[1:]:
+			key = setting_key(name)
 
-			if value is None:
-				print(f"[ERROR] unknown setting '{key}'")
+			if key is None:
 				return 1
 
-			print(f"{key} = {value}")
+			print(f"{key} = {settings.get(key)}")
 
 		return 0
 
@@ -1006,7 +1221,11 @@ def command_settings(context: Context, args: list[str]) -> int:
 			print("[ERROR] set requires a setting name and a value")
 			return 1
 
-		key = args[1]
+		key = setting_key(args[1])
+
+		if key is None:
+			return 1
+
 		raw = " ".join(args[2:])
 		target = paths.editable_settings_file()
 
@@ -1047,7 +1266,7 @@ def command_daemon(context: Context, args: list[str]) -> int:
 	action = args[0].lower().strip("-") if args else "start"
 
 	if action in ("kill", "k", "stop"):
-		return daemon.stop()
+		return daemon.stop(context.settings, assume_yes=context.assume_yes)
 
 	if action in ("status", "st", "state"):
 		return daemon.status(context.settings)
@@ -1064,7 +1283,7 @@ def command_daemon(context: Context, args: list[str]) -> int:
 		return daemon.run(context.settings)
 
 	if action in ("restart", "r"):
-		_ = daemon.stop()
+		_ = daemon.stop(context.settings, assume_yes=context.assume_yes)
 		return daemon.start(context.settings)
 
 	if action in ("start", "s"):

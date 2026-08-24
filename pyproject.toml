@@ -3,7 +3,7 @@ requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tracker"
+name = "project-tracker"
 version = "1.0.0"
 description = "Simple project tracker"
 readme = "README.md"
@@ -21,9 +21,18 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3",
+    "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Topic :: Software Development",
     "Topic :: Utilities",
+    "Typing :: Typed",
 ]
 
 dependencies = []
@@ -33,6 +42,7 @@ Homepage = "https://github.com/MattFor/tracker"
 Source = "https://github.com/MattFor/tracker"
 Mirror = "https://codeberg.org/MattFor/tracker"
 Issues = "https://github.com/MattFor/tracker/issues"
+Changelog = "https://github.com/MattFor/tracker/blob/master/CHANGELOG.md"
 
 [project.scripts]
 tracker = "tracker.cli.app:main"
@@ -43,7 +53,7 @@ where = ["."]
 include = ["tracker*"]
 
 [tool.setuptools.package-data]
-tracker = ["share/*.toml", "share/*.txt", "share/completion.*"]
+tracker = ["py.typed", "share/*.toml", "share/*.txt", "share/completion.*"]
 
 [dependency-groups]
 dev = [
@@ -63,23 +73,39 @@ line-ending = "auto"
 skip-magic-trailing-comma = false
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F"]
+select = [
+    "E4", "E7", "E9", # pycodestyle: real mistakes, not whitespace taste
+    "F", # pyflakes
+    "B", # bugbear
+    "C4", # comprehensions
+    "PIE", # misc lint
+    "SIM", # simplify
+    "UP", # pyupgrade
+    "ARG", # unused arguments
+    "PLE", "PLW", # pylint errors and warnings
+    "FURB", # modernisation
+    "RUF", # ruff specific
+]
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 90
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--strict-markers --strict-config"
+xfail_strict = true
 
 [tool.basedpyright]
 include = ["tracker", "tests", "main.py"]
+exclude = ["**/__pycache__", ".venv", "build", "dist"]
 
-reportPrivateUsage = false # We'll deal with this later methinks
-reportImportCycles = false
+pythonVersion = "3.12"
 
 reportAny = false
 reportExplicitAny = false
-reportUnknownVariableType = false
+reportPrivateUsage = false
+reportImportCycles = false
 reportUnknownMemberType = false
 reportUnknownArgumentType = false
+reportUnknownVariableType = false
 reportUnknownParameterType = false

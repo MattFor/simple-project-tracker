@@ -389,3 +389,73 @@ def test_explicit_prefixes_accept_ranges():
 		"beta",
 		"gamma",
 	]
+
+
+#
+# Numbering
+#
+
+
+def hidden_sample():
+	return make_projects(
+		("/code/alpha", "dev", "2026-01-05 10:00:00", ""),
+		("/code/beta", "archive", "2026-01-04 10:00:00", ""),
+		("/code/gamma", "dev", "2026-01-03 10:00:00", ""),
+		("/code/delta", "archive", "2026-01-02 10:00:00", ""),
+		("/code/epsilon", "dev", "2026-01-01 10:00:00", ""),
+	)
+
+
+def test_temporary_ids_leave_no_gaps_when_a_filter_hides_projects():
+	settings = make_settings(
+		sorting__by="name",
+		sorting__direction="ascending",
+		display__filter=["-s:archive"],
+	)
+
+	numbering = temporary_ids(hidden_sample(), settings)
+
+	assert numbering["/code/alpha"] == 1
+	assert numbering["/code/epsilon"] == 2
+	assert numbering["/code/gamma"] == 3
+
+
+def test_a_hidden_project_is_numbered_by_whatever_shows_it():
+	from tracker.core.selection import pin_projects
+
+	settings = make_settings(
+		sorting__by="name",
+		sorting__direction="ascending",
+		display__filter=["-s:archive"],
+	)
+
+	projects = hidden_sample()
+	hidden = {path: projects[path] for path in ("/code/beta", "/code/delta")}
+
+	assert "/code/beta" not in temporary_ids(projects, settings)
+
+	assert pin_projects(hidden, settings) == {"/code/beta": 1, "/code/delta": 2}
+	assert names(select_projects(projects, settings, [":1"])) == ["beta"]
+	assert names(select_projects(projects, settings, [":2"])) == ["delta"]
+
+
+def test_a_colon_is_a_shorthand_for_the_temporary_id():
+	projects = sample()
+	settings = make_settings(sorting__by="name", sorting__direction="descending")
+
+	assert names(select_projects(projects, settings, [":1"])) == ["gamma"]
+	assert names(select_projects(projects, settings, [":2"])) == ["beta"]
+	assert sorted(names(select_projects(projects, settings, [":1-2"]))) == [
+		"beta",
+		"gamma",
+	]
+
+
+def test_a_colon_selector_never_reads_as_a_status():
+	projects = sample()
+	settings = make_settings()
+
+	selected, unmatched = resolve_selection(projects, settings, [":99"], quiet=True)
+
+	assert not selected
+	assert unmatched == [":99"]

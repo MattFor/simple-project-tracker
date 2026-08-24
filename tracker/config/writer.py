@@ -70,6 +70,10 @@ def write_setting(path: Path, dotted: str, value: Any) -> str | None:
 	if len(parts) != 2:
 		return f"'{dotted}' cannot be edited automatically, use `settings edit`"
 
+	if isinstance(value, dict):
+		# Do not declare it twice
+		return f"'{dotted}' is a table, edit it with `settings edit`"
+
 	section, key = parts
 
 	try:

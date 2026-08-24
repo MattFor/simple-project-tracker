@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ "v*" ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  FORCE_COLOR: "1"
+
+jobs:
+  lint:
+    name: Lint and types
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install tooling
+        run: python -m pip install --upgrade pip ruff basedpyright pytest
+
+      - name: Ruff
+        run: |
+          ruff check --output-format=github .
+          ruff format --check .
+
+      - name: Basedpyright
+        run: basedpyright
+
+  test:
+    name: Tests on ${{ matrix.python-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest ]
+        python-version: [ "3.11", "3.12", "3.13" ]
+        include:
+          - os: macos-latest
+            python-version: "3.12"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+          python -m pip install -e .
+
+      - name: Tests
+        run: python -m pytest
+
+      - name: Tests without pytest
+        run: python tests/run.py
+
+      - name: Smoke test the installed command
+        run: |
+          tracker version
+          tracker help > /dev/null
+          tracker help selection > /dev/null
+          tracker stats
+
+  package:
+    name: Build the distribution
+    runs-on: ubuntu-latest
+    needs: [ lint, test ]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Check the man page
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq mandoc
+          mandoc -T lint -W warning man/tracker.1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*

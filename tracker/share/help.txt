@@ -25,7 +25,8 @@
          {GREEN}tracker help selection{RESET}
 
       {GRAY}Topics: usage, commands, short forms, project selection, statuses,{RESET}
-      {GRAY}list filters, timestamps, row format, notes, options, configuration.{RESET}
+      {GRAY}list filters, timestamps, row format, names, notes, options,{RESET}
+      {GRAY}configuration.{RESET}
 
    {YELLOW}version{RESET}, {GRAY}v, -v, --version{RESET}
       Show the program version.
@@ -37,6 +38,7 @@
          {GREEN}tracker list{RESET}
          {GREEN}tracker list <search>{RESET}
          {GREEN}tracker list <number>{RESET}
+         {GREEN}tracker list all{RESET}
          {GREEN}tracker list regex <pattern>{RESET}
          {GREEN}tracker list <filter>{RESET}
          {GREEN}tracker list s:<status>{RESET}
@@ -46,9 +48,10 @@
          {GREEN}tracker list tracker{RESET}
          {GREEN}tracker list 20{RESET}
          {GREEN}tracker list 0{RESET}                        {GRAY}no limit{RESET}
+         {GREEN}tracker list all{RESET}                      {GRAY}no limit, {GREEN}a{GRAY}, {GREEN}max{GRAY} and {GREEN}full{GRAY} too{RESET}
          {GREEN}tracker list regex "^relaxy-"{RESET}
          {GREEN}tracker list -m:archived{RESET}
-         {GREEN}tracker list s:current,todo{RESET}           {GRAY}only these statuses{RESET}
+         {GREEN}tracker list s:current,planned{RESET}           {GRAY}only these statuses{RESET}
          {GREEN}tracker list '!s:archived'{RESET}            {GRAY}everything else{RESET}
          {GREEN}tracker list sorting.by=status{RESET}
          {GREEN}tracker list display.list_limit=20{RESET}
@@ -67,7 +70,9 @@
          {GREEN}tracker check 42{RESET}
          {GREEN}tracker check 1-5{RESET}
 
-      {GRAY}A bare project name with no command shows the short version instead.{RESET}
+      {GRAY}A bare project name does the same when it matches one project, and{RESET}
+      {GRAY}prints a row per project when it matches several. A word that names no{RESET}
+      {GRAY}project is tried as a status, so {GREEN}tracker stable{GRAY} lists every stable one.{RESET}
 
    {YELLOW}add{RESET}, {GRAY}a, --add{RESET}
       Add a project or scan a directory for projects.
@@ -96,7 +101,8 @@
          {GREEN}tracker edit <selection> note <value...>{RESET}
          {GREEN}tracker <selection> edit status <value>{RESET}
 
-      {GRAY}status may be shortened to s or st, note to n or nt.{RESET}
+      {GRAY}status may be shortened to s or st, note to n or nt, and the field can be{RESET}
+      {GRAY}fused onto edit: {GREEN}es{GRAY} is edit status and {GREEN}en{GRAY} is edit note.{RESET}
 
       {GRAY}Examples:{RESET}
          {GREEN}tracker edit 12 status active{RESET}
@@ -104,9 +110,11 @@
          {GREEN}tracker edit 5+3 note "needs documentation"{RESET}
          {GREEN}tracker edit tracker status maintenance{RESET}
          {GREEN}tracker edit id:12 n review sunday{RESET}
+         {GREEN}tracker 12 es blocked{RESET}
+         {GREEN}tracker t:3 en review sunday{RESET}
          {GREEN}tracker edit all status active{RESET}
 
-   {YELLOW}note{RESET}, {GRAY}n{RESET}
+   {YELLOW}note{RESET}, {GRAY}n, sn{RESET}
       Set a project's note without naming the field.
 
       {GRAY}Usage:{RESET}
@@ -116,15 +124,17 @@
       {GRAY}Examples:{RESET}
          {GREEN}tracker note 12 review sunday{RESET}
          {GREEN}tracker id:12 n review sunday{RESET}
+         {GREEN}tracker 12 sn review sunday{RESET}
          {GREEN}tracker tracker n ""{RESET}                {GRAY}clear it{RESET}
 
-   {YELLOW}status{RESET}, {GRAY}st{RESET}
+   {YELLOW}status{RESET}, {GRAY}st, ss{RESET}
       Set a project's status without naming the field, or list the statuses in use.
 
       {GRAY}Usage:{RESET}
          {GREEN}tracker status{RESET}
          {GREEN}tracker status <selection> <value>{RESET}
          {GREEN}tracker <selection> status <value>{RESET}
+         {GREEN}tracker <selection> ss <value>{RESET}
          {GREEN}tracker status s:<old> <new>{RESET}
 
       {GRAY}Examples:{RESET}
@@ -132,7 +142,7 @@
          {GREEN}tracker status 12 blocked{RESET}
          {GREEN}tracker tracker st current{RESET}
          {GREEN}tracker status s:blocked paused{RESET}       {GRAY}move every blocked project{RESET}
-         {GREEN}tracker status s:todo,planned active{RESET}
+         {GREEN}tracker status s:planned,next active{RESET}
 
       {GRAY}Projects that already hold the new status are counted, not rewritten.{RESET}
 
@@ -156,12 +166,26 @@
          {GREEN}tracker init <path>{RESET}
 
       {GRAY}If no path is supplied, the current directory is used.{RESET}
+      {GRAY}A project that was moved keeps its entry instead of being reported as{RESET}
+      {GRAY}deleted, see {GREEN}scan.detect_moves{GRAY}.{RESET}
 
    {YELLOW}path{RESET}, {GRAY}p, where{RESET}
       Print the path of a project.
 
       {GRAY}Usage:{RESET}
          {GREEN}cd "$(tracker path tracker)"{RESET}
+
+   {YELLOW}undo{RESET}, {GRAY}u, revert{RESET}
+      Take back the last change made to the database.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}tracker undo{RESET}
+
+      {GRAY}One change is remembered, the last one: an edit, an add, a scan, a removal.{RESET}
+      {GRAY}Looking at projects is not a change, and neither is a scan by the daemon,{RESET}
+      {GRAY}so neither of them can lose an undo. Undoing twice puts things back.{RESET}
+
+      {GRAY}The database as it was is kept beside it, as {GREEN}data.pkl.undo{GRAY}.{RESET}
 
    {YELLOW}stats{RESET}, {GRAY}stat, summary{RESET}
       Show how many projects are tracked, how they are split by status, which ones were touched most and least recently, and which one you last used.
@@ -196,6 +220,7 @@
       {GRAY}Usage:{RESET}
          {GREEN}tracker daemon{RESET}              {GRAY}start detached{RESET}
          {GREEN}tracker daemon stop{RESET}         {GRAY}also: kill, k{RESET}
+         {GREEN}tracker daemon stop --yes{RESET}   {GRAY}including daemons of another configuration{RESET}
          {GREEN}tracker daemon restart{RESET}
          {GREEN}tracker daemon status{RESET}
          {GREEN}tracker daemon log [lines]{RESET}
@@ -208,11 +233,13 @@
    {GRAY}A command and one of its own actions can be written as one word.{RESET}
 
    {GREEN}t dst{RESET}    {GRAY}daemon status{RESET}          {GREEN}t sg <setting>{RESET}   {GRAY}settings get{RESET}
-   {GREEN}t ds{RESET}     {GRAY}daemon start{RESET}           {GREEN}t ss <k> <v>{RESET}     {GRAY}settings set{RESET}
+   {GREEN}t ds{RESET}     {GRAY}daemon start{RESET}           {GREEN}t sset <k> <v>{RESET}   {GRAY}settings set{RESET}
    {GREEN}t dk{RESET}     {GRAY}daemon stop{RESET}            {GREEN}t se{RESET}             {GRAY}settings edit{RESET}
    {GREEN}t dr{RESET}     {GRAY}daemon restart{RESET}         {GREEN}t sp{RESET}             {GRAY}settings path{RESET}
    {GREEN}t dl{RESET}     {GRAY}daemon log{RESET}             {GREEN}t fl{RESET}             {GRAY}forget list{RESET}
-                                   {GREEN}t fc{RESET}             {GRAY}forget clear{RESET}
+   {GREEN}t es{RESET}     {GRAY}edit status{RESET}            {GREEN}t fc{RESET}             {GRAY}forget clear{RESET}
+   {GREEN}t en{RESET}     {GRAY}edit note{RESET}             {GREEN}t ss <value>{RESET}     {GRAY}set status{RESET}
+                                   {GREEN}t sn <value...>{RESET}  {GRAY}set note{RESET}
 
    {GRAY}Only a command plus its own action fuses. Put a project that collides after {GREEN}--{GRAY}.{RESET}
 
@@ -224,6 +251,7 @@
    {GREEN}t:n{RESET}            Force the temporary ID {GRAY}(tid:n too){RESET}
    {GREEN}#n{RESET}             Force the permanent ID {GRAY}(quote it, the shell reads # as a comment){RESET}
    {GREEN}@n{RESET}             Force the temporary ID
+   {GREEN}:n{RESET}             Force the temporary ID, shorthand for {GREEN}t:n{RESET}
    {GREEN}n-x{RESET}            Inclusive range, in either direction
    {GREEN}n+x{RESET}            n and the next x projects
    {GREEN}all{RESET}            Every tracked project
@@ -232,10 +260,28 @@
    {GREEN}name{RESET}           Exact or partial project name
    {GREEN}path{RESET}           Exact or partial project path, tab completion included
 
-   {GRAY}i: and t: accept ranges too, {GREEN}t:3-7{GRAY} and {GREEN}i:5+3{GRAY} settle a number that is both.{RESET}
+   {GRAY}i:, t: and :n accept ranges too, {GREEN}t:3-7{GRAY} and {GREEN}i:5+3{GRAY} settle a number that is both.{RESET}
    {GRAY}Set {GREEN}projects.number_preference{GRAY} to id or tid to stop being asked at all.{RESET}
 
-{GRAY}Ambiguous partial matches are resolved according to projects.conflict_resolution_preference.{RESET}
+   {GRAY}A temporary ID is the row a project had the last time tracker printed one:{RESET}
+   {GRAY}a listing, a search, a status lookup, the projects a scan added. Whatever{RESET}
+   {GRAY}is on the screen is numbered 1, 2, 3 and so on, so there are never gaps and{RESET}
+   {GRAY}a project {GREEN}display.filter{GRAY} hides still gets a number when something shows it.{RESET}
+   {GRAY}Only printing rows renumbers, so a scan finishing in the background cannot{RESET}
+   {GRAY}move a project out from under a number you typed. A project that has not{RESET}
+   {GRAY}been shown has no row and prints as {GREEN}-{GRAY}.{RESET}
+
+{GRAY}A partial name that matches several projects is settled by{RESET}
+{GRAY}{GREEN}projects.conflict_resolution_preference{GRAY}:{RESET}
+
+   {GREEN}starts_with{RESET}    prefer a project whose name starts with what you typed
+   {GREEN}first_match{RESET}    take the first one in the current order
+   {GREEN}frecency{RESET}       the one you reach for most through tracker, ranked the way
+                  zoxide ranks directories: how often, weighted by how recently
+   {GREEN}zoxide{RESET}         the one you visit most, read from the zoxide database,
+                  falling back to frecency when zoxide knows none of them
+
+{GRAY}frecency and zoxide list the clash as usual when they cannot tell them apart.{RESET}
 
 {GRAY}remove and forget do nothing at all unless every selector resolved.{RESET}
 
@@ -269,14 +315,21 @@
    {GREEN}tracker status <selection> <new>{RESET}  {GRAY}set one{RESET}
    {GREEN}tracker status s:<old> <new>{RESET}      {GRAY}move every project from one to another{RESET}
 
+   {GRAY}A bare word that names no project is tried as a status:{RESET}
+
+      {GREEN}tracker stable{RESET}                 {GRAY}the same as {GREEN}tracker s:stable{RESET}
+      {GREEN}tracker blocked{RESET}
+
+   {GRAY}A project name always wins, and the fallback only reads, never edits.{RESET}
+
    {GRAY}Anything that takes a project takes {GREEN}s:<status>{GRAY} as well:{RESET}
 
       {GREEN}tracker check s:blocked{RESET}
       {GREEN}tracker remove s:deleted{RESET}
-      {GREEN}tracker note s:todo -- picked up again{RESET}
+      {GREEN}tracker note s:planned -- picked up again{RESET}
 
    {GRAY}Listing:{RESET}
-      {GREEN}tracker list s:current,todo{RESET}    {GRAY}only these{RESET}
+      {GREEN}tracker list s:current,planned{RESET}    {GRAY}only these{RESET}
       {GREEN}tracker list '!s:archived'{RESET}     {GRAY}everything else{RESET}
       {GREEN}tracker list sorting.by=status{RESET}
 
@@ -284,13 +337,26 @@
       {GREEN}display.filter{RESET}          applies to every listing, the bare {GREEN}tracker{RESET} included
       {GREEN}display.status_colours{RESET}  a colour per status, add your own
       {GREEN}sorting.status_order{RESET}    the order {GREEN}sorting.by = "status"{RESET} uses
+      {GREEN}projects.auto_status{RESET}    label projects by how long ago they were touched
 
    {GRAY}Example:{RESET}
       {GREEN}filter = ["-s:archived"]{RESET}
-      {GREEN}status_order = ["current", "todo", "blocked", "shelf", "archived"]{RESET}
+      {GREEN}status_order = ["current", "planned", "blocked", "shelf", "archived"]{RESET}
 
    {GRAY}Statuses left out of status_order sort after the ones in it.{RESET}
    {GRAY}A status matches exactly or by prefix, so {GREEN}s:arch{GRAY} finds archived too.{RESET}
+
+   {GRAY}Automatic statuses:{RESET}
+      {GREEN}projects.auto_status = true{RESET}
+
+      {GREEN}[projects.auto_status_rules]{RESET}
+      {GREEN}dev = 7{RESET}        {GRAY}touched within a week{RESET}
+      {GREEN}stable = 90{RESET}    {GRAY}within three months{RESET}
+      {GREEN}archive = 0{RESET}    {GRAY}everything older{RESET}
+
+   {GRAY}A scan then gives every project the status its age asks for. Only the{RESET}
+   {GRAY}statuses named in the rules and {GREEN}projects.default_status{GRAY} are ever rewritten,{RESET}
+   {GRAY}so anything you set by hand stays where you put it.{RESET}
 
 {BOLD}Timestamps:{RESET}
    {GRAY}Every project carries when it was last touched on disk, and when you last{RESET}
@@ -331,6 +397,22 @@
 
    {GRAY}Use single quotes, shells tend to eat $name inside double quotes.{RESET}
 
+{BOLD}Names:{RESET}
+   {GRAY}A long project name can be cut down to keep the table narrow.{RESET}
+
+      {GREEN}display.name_max_width{RESET}    widest a name may print, 0 keeps it whole
+      {GREEN}display.name_style{RESET}        full, truncate {GRAY}(default){RESET}, abbreviate
+      {GREEN}display.name_continuator{RESET}  what a truncated name ends with
+
+   {GRAY}Both styles break on {GREEN}-{GRAY}, {GREEN}_{GRAY}, {GREEN}.{GRAY} and on capitals inside a CamelCase name.{RESET}
+
+   {GRAY}truncate{RESET}     von-neumann-machine-simulator -> von-neumann...
+   {GRAY}abbreviate{RESET}   von-neumann-machine-simulator -> von-neum-mac-sim
+                VonNeumannMachineSimulator    -> VonNeuMacSim
+
+   {GRAY}Example:{RESET}
+      {GREEN}tracker list display.name_max_width=16 display.name_style=abbreviate{RESET}
+
 {BOLD}Notes:{RESET}
    {GRAY}A note is shown on the same line as its project and only moves to its own{RESET}
    {GRAY}line when the terminal is too narrow for it. Change that with:{RESET}
@@ -338,6 +420,17 @@
       {GREEN}display.note_position{RESET}    auto {GRAY}(default){RESET}, inline, below
       {GREEN}display.note_min_width{RESET}   how much room a note needs to stay inline
       {GREEN}display.show_notes{RESET}       turn notes off entirely
+
+   {GRAY}A note can colour itself. The word goes in braces and lasts until {GREEN}{/}{GRAY}:{RESET}
+
+      {GREEN}tracker note 12 {red}broken{/} since the rewrite{RESET}
+      {GREEN}tracker note 12 -- {y}waiting{/} on review{RESET}
+
+   {GRAY}Long:  {GREEN}{red} {green} {yellow} {blue} {magenta} {cyan} {white} {gray} {bold} {dim} {reset}{RESET}
+   {GRAY}Short: {GREEN}{r} {g} {y} {u} {m} {c} {w} {k} {b} {d} {/}{RESET}
+
+   {GRAY}Anything else in braces is printed as written, and the colours disappear{RESET}
+   {GRAY}by themselves when the output is not a terminal.{RESET}
 
 {BOLD}Options:{RESET}
    {MAGENTA}verbose{RESET}, {GRAY}vv, --verbose, --vv{RESET}
@@ -363,23 +456,48 @@
    {GRAY}Files:{RESET}
       {GREEN}~/.config/tracker/settings.toml{RESET}      configuration
       {GREEN}~/.local/share/tracker/data.pkl{RESET}      database
+      {GREEN}~/.local/state/tracker/view.json{RESET}     the numbering of the last listing
       {GREEN}~/.local/state/tracker/{RESET}              daemon pid and log
 
    {GRAY}Worth knowing about:{RESET}
       {GREEN}display.relative_style{RESET}       long or short relative times
       {GREEN}display.filter{RESET}               filters every listing, statuses included
+      {GREEN}display.name_max_width{RESET}       shorten names that are too long
       {GREEN}sorting.by{RESET}                   id, name, path, status, last_touched, last_used
       {GREEN}sorting.status_order{RESET}         the order sorting.by = "status" uses
       {GREEN}projects.number_preference{RESET}   ask, id or tid for a bare number
       {GREEN}projects.track_usage{RESET}         remember when you last used a project
+      {GREEN}projects.conflict_resolution_preference{RESET}
+      {GRAY}                          starts_with, first_match, frecency, zoxide{RESET}
+      {GREEN}projects.ignore_files{RESET}        generated files that are not your work
+      {GREEN}projects.auto_status{RESET}         label projects by their age
+      {GREEN}scan.detect_moves{RESET}            follow a project that was moved
 
    {GRAY}Settings can be overridden for a single command:{RESET}
       {GREEN}tracker list display.list_limit=20{RESET}
       {GREEN}tracker list sorting.by=name output.compact=true{RESET}
 
+   {GRAY}A setting can be named in full or shortened, anywhere one is expected:{RESET}
+      {GREEN}display.list_limit{RESET}   the full name
+      {GREEN}list_limit{RESET}           the name alone, every setting has a unique one
+      {GREEN}list_lim{RESET}             the start of it
+      {GREEN}l_l{RESET}                  the start of every word
+      {GREEN}ll{RESET}                   its initials
+      {GREEN}d.ll{RESET}                 the section shortens the same way
+
+   {GRAY}Anything that is still ambiguous is reported with the settings it could mean.{RESET}
+
+      {GREEN}tracker list ll=5 rt=true{RESET}
+      {GREEN}tracker sset name_max 20{RESET}
+      {GREEN}tracker sg by crp{RESET}
+
+   {GRAY}{GREEN}nmw{GRAY} is a good example of ambiguous: it fits name_max_width and{RESET}
+   {GRAY}note_min_width, so tracker lists both instead of guessing.{RESET}
+
    {GRAY}Environment:{RESET}
       {GREEN}TRACKER_SETTINGS{RESET}   use a different settings file
       {GREEN}TRACKER_DATA{RESET}       use a different database file
+      {GREEN}TRACKER_VIEW{RESET}       use a different file for the temporary numbering
       {GREEN}TRACKER_SHARE{RESET}      use a different directory for the shipped files
       {GREEN}NO_COLOR{RESET}           disable colour
 
@@ -393,7 +511,10 @@
    {GREEN}tracker id:12 note review sunday{RESET}
    {GREEN}tracker tracker st current{RESET}
    {GREEN}tracker status s:blocked paused{RESET}
-   {GREEN}tracker list s:current,todo{RESET}
+   {GREEN}tracker list s:current,planned{RESET}
+   {GREEN}tracker list all{RESET}
+   {GREEN}tracker 12 es blocked{RESET}
+   {GREEN}tracker :3 en {y}review{/} sunday{RESET}
    {GREEN}tracker list display.relative_style=short{RESET}
    {GREEN}tracker remove tracker{RESET}
    {GREEN}tracker init ~/Programming{RESET}

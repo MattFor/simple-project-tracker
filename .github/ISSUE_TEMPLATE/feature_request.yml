@@ -1,0 +1,24 @@
+name: Feature request
+description: Something tracker should be able to do
+labels: [ enhancement ]
+
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The thing you want (not the solution).
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: How you imagine it working
+      description: A command line, a setting, an example of the output.
+      render: shell
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do right now instead

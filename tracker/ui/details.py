@@ -1,10 +1,10 @@
 from pathlib import Path
 from datetime import datetime
 
-from tracker.ui.ansi import C
+from tracker.ui.ansi import C, markup
 from tracker.core.models import Project
-from tracker.ui.render import short_times, status_colour
 from tracker.config.settings import Settings
+from tracker.ui.render import short_times, status_colour
 from tracker.core.inspect import detect_manifest, disk_usage, git_info
 from tracker.util.text import human_size, parse_time, relative_time, wrap
 
@@ -63,6 +63,7 @@ def print_details(
 	_field("Status", status, status_colour(status, settings))
 	_field("Last touched", _stamp(str(project.get("last_touched", "")), settings))
 	_field("Last used", _stamp(str(project.get("last_used", "")), settings))
+	_field("Uses", str(project.get("uses", 0) or ""))
 	_field("First seen", _stamp(str(project.get("first_seen", "")), settings))
 
 	if project.get("archived"):
@@ -131,7 +132,7 @@ def print_details(
 		_section("Note")
 
 		for line in note.splitlines() or [note]:
-			for piece in wrap(line, 70) or [""]:
+			for piece in wrap(markup(line, "GRAY"), 70) or [""]:
 				print(f"  {C.GRAY}{piece}{C.RESET}")
 
 	archived_note = str(project.get("archived_note", "") or "")
@@ -139,7 +140,7 @@ def print_details(
 	if archived_note and archived_note != note:
 		_section("Note before archiving")
 
-		for piece in wrap(archived_note, 70):
+		for piece in wrap(markup(archived_note, "GRAY"), 70):
 			print(f"  {C.GRAY}{piece}{C.RESET}")
 
 	if verbose:

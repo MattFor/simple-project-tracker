@@ -1,4 +1,4 @@
-.TH TRACKER 1 "August 2026" "tracker 1.0.0" "User Commands"
+.TH TRACKER 1 "August 23, 2026" "tracker 1.0.0" "User Commands"
 
 .SH NAME
 tracker \- simple project tracker by MattFor
@@ -44,7 +44,8 @@ Show the program version.
 
 .TP
 .BR list ", " l ", " ls
-List tracked projects. Accepts a search word, a limit, a
+List tracked projects. Accepts a search word, a limit,
+.BR all " (also " a ", " max " and " full ") for no limit, a"
 .B regex
 pattern, list filters and temporary setting overrides in
 .IR setting = value
@@ -78,17 +79,25 @@ Change the
 or
 .B note
 of the selected projects. The field names may be shortened to
-.BR s ", " st " for status and " n ", " nt " for note."
+.BR s ", " st " for status and " n ", " nt " for note,"
+and the field fuses onto the command, so
+.B "tracker 12 es blocked"
+is
+.B "tracker 12 edit status blocked"
+and
+.B en
+is
+.BR "edit note" .
 
 .TP
-.BR note ", " n
+.BR note ", " n ", " sn
 Set the note of the selected projects without naming the field, for example
-.BR "tracker note 12 review sunday" .
+.BR "tracker note 12 review sunday" " or " "tracker 12 sn review sunday" .
 
 .TP
-.BR status ", " st
+.BR status ", " st ", " ss
 Set the status of the selected projects without naming the field, for example
-.BR "tracker 12 st blocked" .
+.BR "tracker 12 st blocked" " or " "tracker 12 ss blocked" .
 With no arguments it lists every status in use and how many projects hold it.
 Combined with an
 .BI s: status
@@ -107,12 +116,25 @@ in the settings file, which a running daemon picks up on its next scan. Takes
 .TP
 .BR init ", " i ", " scan
 Scan a directory and merge what it finds into the database. Existing entries
-keep their ID, status and note.
+keep their ID, status and note. A project that was moved is recognised by its
+checkout and keeps its entry rather than being reported as deleted and added
+again, unless
+.B scan.detect_moves
+is off.
 
 .TP
 .BR path ", " p ", " where
 Print the path of a project, for example
 .BR "cd \(dq$(tracker path tracker)\(dq" .
+
+.TP
+.BR undo ", " u ", " revert
+Take back the last change made to the database: an edit, an add, a scan, a
+removal. One change is remembered, the last one. Looking at projects is not a
+change, and neither is a scan by the daemon, so neither of them can lose an
+undo. Undoing twice puts things back. The database as it was is kept beside it,
+as
+.IR data.pkl.undo .
 
 .TP
 .BR stats ", " summary
@@ -153,11 +175,17 @@ is
 .BR ds ", " dst ", " dk ", " dr ", " dl
 daemon start, status, stop, restart, log
 .TP
-.BR sg ", " ss ", " se ", " sp
+.BR sg ", " sset ", " se ", " sp
 settings get, set, edit, path
+.TP
+.BR ss ", " sn
+set status, set note
 .TP
 .BR fl ", " fc
 forget list, forget clear
+.TP
+.BR es ", " en
+edit status, edit note
 .PP
 Only a command and its own action fuse.
 .BR -- .
@@ -190,6 +218,10 @@ instead.
 .BI @ n
 Force the temporary ID.
 .TP
+.BI : n
+Force the temporary ID, a shorthand for
+.BI t: n .
+.TP
 .IB n - x
 Inclusive range, in either direction.
 .TP
@@ -214,6 +246,19 @@ Exact or partial project name.
 .B path
 Exact or partial project path. A path that exists on disk is resolved first, so
 tab completed and relative paths work.
+.PP
+A temporary ID is the row a project had the last time tracker printed one: a
+listing, a search, a status lookup, the projects a scan added. Whatever is on
+the screen is numbered from 1, so the numbering never has gaps and a project
+hidden by
+.B display.filter
+still gets a number whenever something shows it. Only printing rows renumbers,
+so a scan finishing in the background cannot move a project out from under a
+number that was already typed. A project that has not been shown has no row and
+prints as
+.BR - .
+The numbering is kept in
+.IR ~/.local/state/tracker/view.json .
 .PP
 .B i:
 and
@@ -276,6 +321,46 @@ included, so
 .B "filter = [\(dq-s:archived\(dq]"
 hides archived projects everywhere.
 
+.SH BARE WORDS
+A word with no command in front of it is a project lookup: it shows everything
+about the project when it matches one, and a row per project when it matches
+several. A word that names no project at all is then tried as a status, so
+.B "tracker stable"
+lists every project holding that status, the same as
+.BR "tracker s:stable" .
+A project name always wins over a status of the same name, and the fallback
+only ever shows projects; commands that change or remove them still need
+.BI s: status
+spelled out.
+
+.SH AMBIGUOUS NAMES
+A partial name that matches several projects is settled by
+.BR projects.conflict_resolution_preference :
+.TP
+.B starts_with
+Prefer a project whose name starts with what was typed.
+.TP
+.B first_match
+Take the first one in the current order.
+.TP
+.B frecency
+The project reached for most through tracker, ranked the way zoxide ranks
+directories: a count of uses, multiplied by 4 within the hour, 2 within the day,
+0.5 within the week and 0.25 beyond it. Counting uses needs
+.BR projects.track_usage .
+.TP
+.B zoxide
+The project visited most, read from the zoxide database with
+.BR "zoxide query --list --score" ,
+falling back to the frecency of tracker's own usage when zoxide is not installed
+or knows none of the candidates.
+.PP
+.B frecency
+and
+.B zoxide
+list the clash the way the other preferences do when they cannot tell the
+candidates apart.
+
 .SH STATUSES
 A status is free text; tracker only cares about the ones you use.
 .B "tracker status"
@@ -286,8 +371,30 @@ gives each one a colour and
 sets the order
 .B "sorting.by = \(dqstatus\(dq"
 uses, with anything left out of it sorting after the rest.
+.PP
+.B projects.auto_status
+gives a project its status from how long ago it was last touched, using the
+ages listed under
+.BR [projects.auto_status_rules] ,
+where the entry set to
+.B 0
+catches everything older than the rest. Only those statuses and
+.B projects.default_status
+are ever rewritten, so a status set by hand is left alone.
 
 .SH TIMESTAMPS
+The date a project was last touched comes from the newest file inside it. The
+directories in
+.B projects.ignore
+and the file patterns in
+.B projects.ignore_files
+are skipped while it is worked out, so a database, a log or a cache the project
+writes for itself does not make it look freshly touched. Set
+.B scan.timestamps_skip_ignored
+to
+.B false
+to count everything.
+.PP
 Every project carries when it was last touched on disk
 .RB ( last_touched )
 and when it was last looked at with tracker
@@ -339,6 +446,30 @@ tracker list 'display.format=$>tid. $name [$status]'
 tracker settings set display.format '${tid}) $name - $note'
 .fi
 
+.SH NAMES
+A name longer than
+.B display.name_max_width
+is shortened, breaking on
+.BR - ", " _ ", " .
+and on the capitals of a CamelCase name.
+.B display.name_style
+chooses how:
+.B truncate
+cuts the name at a boundary and ends it with
+.BR display.name_continuator ,
+so
+.B von-neumann-machine-simulator
+becomes
+.BR von-neumann... ,
+while
+.B abbreviate
+shortens every word instead, giving
+.B von-neum-mac-sim
+and
+.BR VonNeuMacSim .
+.B full
+never shortens a name.
+
 .SH NOTES
 A note is printed on the same line as its project and only drops to a line of
 its own when the terminal is too narrow. This is controlled by
@@ -346,6 +477,17 @@ its own when the terminal is too narrow. This is controlled by
 .B display.note_min_width
 and
 .BR display.show_notes .
+.PP
+A note may colour itself. A colour name in braces lasts until
+.BR {/} ,
+so
+.B "tracker note 12 {red}broken{/} since friday"
+prints the first word in red. The long names
+.RB ( {red} ", " {yellow} ", " {gray} ", " {bold} ", " {dim} ", " {reset} ", ...)"
+and the one letter shorthands
+.RB ( {r} ", " {g} ", " {y} ", " {u} ", " {m} ", " {c} ", " {w} ", " {k} ", " {b} ", " {d} ", " {/} )
+are both accepted; anything else in braces is printed as written and the
+colours vanish when the output is not a terminal.
 
 .SH OPTIONS
 .TP
@@ -387,6 +529,33 @@ Settings can be overridden for a single command:
 tracker list display.list_limit=20
 tracker list sorting.by=name output.compact=true
 .fi
+.PP
+A setting may be named in full or shortened, anywhere one is expected. In order,
+tracker tries the full name
+.RB ( display.list_limit ),
+the bare name, which is unique for every setting
+.RB ( list_limit ),
+the start of it
+.RB ( list_lim ),
+the start of every word
+.RB ( l_l )
+and its initials
+.RB ( ll ).
+A section shortens the same way, so
+.B d.ll
+works too. A name that still fits more than one setting is reported with the
+settings it could mean, so
+.B nmw
+lists
+.B display.name_max_width
+and
+.BR display.note_min_width .
+.PP
+.nf
+tracker list ll=5 rt=true
+tracker settings set name_max 20
+tracker settings get by crp
+.fi
 
 .SH DAEMON
 The daemon periodically scans the directories configured under
@@ -403,7 +572,10 @@ and the watched paths take effect without a restart.
 Start the daemon.
 .TP
 .B tracker daemon stop
-Stop the running daemon.
+Stop the daemon this configuration started. A daemon belonging to another
+database or state directory is never stopped silently: it is reported, with the
+database it watches, and stopping it needs
+.BR --yes .
 .TP
 .B tracker daemon status
 Show whether it is running, where its log is and what it watches.
@@ -419,6 +591,9 @@ Use a different settings file.
 .B TRACKER_DATA
 Use a different database file.
 .TP
+.B TRACKER_VIEW
+Use a different file for the numbering of the last listing.
+.TP
 .B TRACKER_SHARE
 Look for the shipped help text and default settings in this directory.
 .TP
@@ -432,7 +607,11 @@ tracker list
 tracker list tracker
 tracker list 20
 tracker list -m:archived
-tracker list s:current,todo
+tracker list s:current,planned
+tracker list all
+tracker list display.name_max_width=16 display.name_style=abbreviate
+tracker 12 es blocked
+tracker :3 en review sunday
 tracker list display.relative_style=short
 tracker status s:blocked paused
 tracker add ~/Programming/Projects active "work in progress"
@@ -455,6 +634,10 @@ Your configuration.
 .TP
 .I ~/.local/share/tracker/data.pkl
 Project database.
+
+.TP
+.I ~/.local/state/tracker/view.json
+The numbering of the last listing, what a temporary ID points at.
 
 .TP
 .I ~/.local/state/tracker/daemon.log

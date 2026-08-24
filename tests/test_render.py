@@ -2,12 +2,9 @@ from typing import Any
 
 from tests.helpers import SAMPLE, make_projects, make_settings
 
-from tracker.ui import ansi
 from tracker.ui.render import render_rows
 from tracker.core.selection import temporary_ids
 from tracker.util.text import human_size, relative_time, truncate, wrap
-
-ansi.C.set_enabled(False)
 
 
 def sample():
@@ -36,7 +33,7 @@ def rows(width: int, **overrides: Any) -> list[str]:
 def test_short_note_shares_the_project_line():
 	lines = rows(120)
 
-	alpha = [line for line in lines if "alpha" in line][0]
+	alpha = next(line for line in lines if "alpha" in line)
 
 	assert "short note" in alpha
 
@@ -161,7 +158,7 @@ def test_an_unknown_format_field_stays_literal():
 def test_a_format_string_can_place_the_note_itself():
 	lines = rows(120, display__format="$name -> $note", display__show_headers=False)
 
-	alpha = [line for line in lines if "alpha" in line][0]
+	alpha = next(line for line in lines if "alpha" in line)
 
 	assert "-> short note" in alpha
 	assert len([line for line in lines if "short note" in line]) == 1
@@ -241,3 +238,81 @@ def test_the_last_used_column_falls_back_to_never():
 
 	assert "2026-01-02 00:00:00" in lines[0]
 	assert "never" in lines[1]
+
+
+def test_a_note_may_colour_itself():
+	from tracker.ui.ansi import C, markup
+
+	projects = make_projects(
+		("/code/alpha", "dev", "2026-01-01 00:00:00", "{red}broken{/} since friday")
+	)
+
+	settings = make_settings(display__columns=["name"], display__show_headers=False)
+
+	C.set_enabled(False)
+
+	try:
+		line = render_rows(projects.items(), settings, width=120)[0]
+
+		assert line.endswith("broken since friday")
+		assert markup("{gray}a{/}b") == "ab"
+
+		C.set_enabled(True)
+
+		painted = render_rows(projects.items(), settings, width=120)[0]
+
+		assert "\033[31m" in painted
+		assert "{red}" not in painted
+	finally:
+		C.set_enabled(False)
+
+
+def test_an_unknown_brace_word_stays_in_the_note():
+	projects = make_projects(
+		("/code/alpha", "dev", "2026-01-01 00:00:00", "wait for {thing}")
+	)
+
+	settings = make_settings(display__columns=["name"], display__show_headers=False)
+
+	assert "{thing}" in render_rows(projects.items(), settings, width=120)[0]
+
+
+def test_a_coloured_note_still_fits_the_terminal():
+	from tracker.ui.ansi import C
+	from tracker.util.text import visible_length
+
+	projects = make_projects(
+		("/code/alpha", "dev", "2026-01-01 00:00:00", "{y}" + "long note " * 10)
+	)
+
+	settings = make_settings(
+		display__columns=["name"],
+		display__show_headers=False,
+		display__note_position="inline",
+	)
+
+	C.set_enabled(True)
+
+	try:
+		line = render_rows(projects.items(), settings, width=60)[0]
+
+		assert visible_length(line) <= 60
+	finally:
+		C.set_enabled(False)
+
+
+def test_a_note_that_never_closes_its_colour_is_closed_for_it():
+	from tracker.ui.ansi import C
+	from tracker.ui.render import note_text
+
+	projects = make_projects(("/code/alpha", "dev", "2026-01-01 00:00:00", "{red}broken"))
+
+	C.set_enabled(True)
+
+	try:
+		painted = note_text(projects["/code/alpha"])
+
+		assert painted.startswith("\033[31m")
+		assert painted.endswith("\033[0m")
+	finally:
+		C.set_enabled(False)
