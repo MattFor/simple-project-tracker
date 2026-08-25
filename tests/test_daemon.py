@@ -183,12 +183,12 @@ def test_a_rescan_restores_a_project_that_was_wrongly_marked_deleted(tmp_path: P
 	data[alpha]["note"] = "mine"
 	archive(data[alpha], "2026-08-24 18:21:30")
 
-	assert data[alpha]["archived"]
+	assert data[alpha].get("archived") is True
 
 	_ = find_projects(str(tmp_path), settings, data)
 
-	assert not data[alpha]["archived"]
-	assert data[alpha]["note"] == "mine"
+	assert data[alpha].get("archived") is False
+	assert data[alpha].get("note") == "mine"
 
 
 #
@@ -234,7 +234,7 @@ def test_losing_a_believable_share_of_the_projects_still_archives_them(tmp_path:
 	assert len(result.removed) == 3
 	assert not result.blocked
 	assert not data[survivors[0]].get("archived", False)
-	assert data[str(tmp_path / names[-1])]["archived"]
+	assert data[str(tmp_path / names[-1])].get("archived") is True
 
 
 def test_a_single_deletion_is_never_blocked_however_small_the_database(
