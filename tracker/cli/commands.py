@@ -926,7 +926,13 @@ def edit_field(context: Context, args: list[str], field_name: str) -> int:
 
 
 def command_note(context: Context, args: list[str]) -> int:
-	return edit_field(context, args, "note")
+	if not args:
+		return missing_project("note")
+
+	if len(args) == 1:
+		return command_edit(context, [args[0], "note", ""])
+
+	return command_edit(context, [args[0], "note", " ".join(args[1:])])
 
 
 def list_statuses(context: Context) -> int:

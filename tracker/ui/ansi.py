@@ -8,6 +8,12 @@ _CODES = {
 	"RESET": "\033[0m",
 	"BOLD": "\033[1m",
 	"DIM": "\033[2m",
+	"ITALIC": "\033[3m",
+	"UNDERLINE": "\033[4m",
+	"BLINK": "\033[5m",
+	"INVERT": "\033[7m",
+	"STRIKE": "\033[9m",
+	"BLACK": "\033[30m",
 	"RED": "\033[31m",
 	"GREEN": "\033[32m",
 	"YELLOW": "\033[33m",
@@ -16,6 +22,21 @@ _CODES = {
 	"CYAN": "\033[36m",
 	"WHITE": "\033[37m",
 	"GRAY": "\033[90m",
+	"BRIGHT_RED": "\033[91m",
+	"BRIGHT_GREEN": "\033[92m",
+	"BRIGHT_YELLOW": "\033[93m",
+	"BRIGHT_BLUE": "\033[94m",
+	"BRIGHT_MAGENTA": "\033[95m",
+	"BRIGHT_CYAN": "\033[96m",
+	"BRIGHT_WHITE": "\033[97m",
+	"BG_BLACK": "\033[40m",
+	"BG_RED": "\033[41m",
+	"BG_GREEN": "\033[42m",
+	"BG_YELLOW": "\033[43m",
+	"BG_BLUE": "\033[44m",
+	"BG_MAGENTA": "\033[45m",
+	"BG_CYAN": "\033[46m",
+	"BG_WHITE": "\033[47m",
 }
 
 MARKUP = {
@@ -25,6 +46,16 @@ MARKUP = {
 	"bold": "BOLD",
 	"d": "DIM",
 	"dim": "DIM",
+	"i": "ITALIC",
+	"italic": "ITALIC",
+	"ul": "UNDERLINE",
+	"underline": "UNDERLINE",
+	"blink": "BLINK",
+	"inv": "INVERT",
+	"invert": "INVERT",
+	"s": "STRIKE",
+	"strike": "STRIKE",
+	"black": "BLACK",
 	"r": "RED",
 	"red": "RED",
 	"g": "GREEN",
@@ -42,9 +73,39 @@ MARKUP = {
 	"k": "GRAY",
 	"gray": "GRAY",
 	"grey": "GRAY",
+	"br-r": "BRIGHT_RED",
+	"br-red": "BRIGHT_RED",
+	"br-g": "BRIGHT_GREEN",
+	"br-green": "BRIGHT_GREEN",
+	"br-y": "BRIGHT_YELLOW",
+	"br-yellow": "BRIGHT_YELLOW",
+	"br-b": "BRIGHT_BLUE",
+	"br-blue": "BRIGHT_BLUE",
+	"br-m": "BRIGHT_MAGENTA",
+	"br-magenta": "BRIGHT_MAGENTA",
+	"br-c": "BRIGHT_CYAN",
+	"br-cyan": "BRIGHT_CYAN",
+	"br-w": "BRIGHT_WHITE",
+	"br-white": "BRIGHT_WHITE",
+	"bg-k": "BG_BLACK",
+	"bg-black": "BG_BLACK",
+	"bg-r": "BG_RED",
+	"bg-red": "BG_RED",
+	"bg-g": "BG_GREEN",
+	"bg-green": "BG_GREEN",
+	"bg-y": "BG_YELLOW",
+	"bg-yellow": "BG_YELLOW",
+	"bg-b": "BG_BLUE",
+	"bg-blue": "BG_BLUE",
+	"bg-m": "BG_MAGENTA",
+	"bg-magenta": "BG_MAGENTA",
+	"bg-c": "BG_CYAN",
+	"bg-cyan": "BG_CYAN",
+	"bg-w": "BG_WHITE",
+	"bg-white": "BG_WHITE",
 }
 
-_MARKUP = re.compile(r"\{(/|[A-Za-z]+)\}")
+_MARKUP = re.compile(r"\{(/|[A-Za-z0-9-]+)\}")
 
 
 @final
@@ -52,6 +113,12 @@ class Palette:
 	RESET: str = ""
 	BOLD: str = ""
 	DIM: str = ""
+	ITALIC: str = ""
+	UNDERLINE: str = ""
+	BLINK: str = ""
+	INVERT: str = ""
+	STRIKE: str = ""
+	BLACK: str = ""
 	RED: str = ""
 	GREEN: str = ""
 	YELLOW: str = ""
@@ -60,6 +127,21 @@ class Palette:
 	CYAN: str = ""
 	WHITE: str = ""
 	GRAY: str = ""
+	BRIGHT_RED: str = ""
+	BRIGHT_GREEN: str = ""
+	BRIGHT_YELLOW: str = ""
+	BRIGHT_BLUE: str = ""
+	BRIGHT_MAGENTA: str = ""
+	BRIGHT_CYAN: str = ""
+	BRIGHT_WHITE: str = ""
+	BG_BLACK: str = ""
+	BG_RED: str = ""
+	BG_GREEN: str = ""
+	BG_YELLOW: str = ""
+	BG_BLUE: str = ""
+	BG_MAGENTA: str = ""
+	BG_CYAN: str = ""
+	BG_WHITE: str = ""
 
 	def __init__(self, enabled: bool = True) -> None:
 		self.enabled = True
