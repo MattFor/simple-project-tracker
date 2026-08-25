@@ -209,6 +209,11 @@ timestamps_skip_ignored = true
 # adding the new path as a second entry.
 detect_moves = true
 
+# The most, as a percentage of the projects under a scanned path, that a single
+# scan is allowed to mark deleted. Above it the scan is treated as broken.
+# 100 removes the brake. Fewer than 3 projects at once is never blocked.
+vanish_limit = 50
+
 # Projects excluded from being indexed.
 exclude = []
 

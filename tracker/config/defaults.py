@@ -134,6 +134,7 @@ def defaults() -> dict[str, Any]:
 			"follow_symlinks": False,
 			"timestamps_skip_ignored": True,
 			"detect_moves": True,
+			"vanish_limit": 50,
 			"exclude": [],
 		},
 		"output": {

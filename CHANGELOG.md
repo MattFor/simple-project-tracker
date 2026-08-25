@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.3]
+
+### Fixed
+
+- `edit` renders a note's colour markup in the line reporting the change.
+- Making a directory a Git repository no longer hides every project beneath it.
+- `tracker init` restores a project that is present again but still marked deleted.
+
+### Added
+
+- `scan.vanish_limit`, the most of a scanned path's projects a single scan may mark
+  deleted before it is treated as a broken scan.
+
 ## [1.0.1]
 
 ### Fixed

@@ -8,7 +8,14 @@ from collections.abc import Callable, Iterable
 from tracker.config.settings import Settings
 from tracker.core.identity import identity_of
 from tracker.core.labels import automatic_label
-from tracker.core.models import Project, Projects, UNKNOWN_TIME, get_id, new_project
+from tracker.core.models import (
+	Project,
+	Projects,
+	UNKNOWN_TIME,
+	get_id,
+	new_project,
+	restore,
+)
 
 
 def matches_any(name: str, patterns: Iterable[str]) -> bool:
@@ -173,10 +180,12 @@ def find_projects(
 		if not is_project(current, detect_git):
 			continue
 
+		halts = stop_at_project and current != root
+
 		project_path = str(current)
 
 		if excluded(project_path, exclude):
-			if stop_at_project:
+			if halts:
 				dirs[:] = []
 
 			continue
@@ -189,6 +198,10 @@ def find_projects(
 
 			if not known.get("identity"):
 				known["identity"] = identity_of(project_path)
+
+			# Whatever was wrong is gone
+			if known.get("archived", False):
+				restore(known)
 
 		else:
 			project = new_project(
@@ -206,7 +219,7 @@ def find_projects(
 			if on_found is not None:
 				on_found(project_path, project)
 
-		if stop_at_project:
+		if halts:
 			dirs[:] = []
 
 	return projects

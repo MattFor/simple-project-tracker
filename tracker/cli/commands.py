@@ -30,6 +30,7 @@ from tracker.core.models import Projects, get_id, new_project
 
 from tracker.ui.render import (
 	format_project,
+	note_display,
 	print_projects,
 	render_rows,
 	short_times,
@@ -902,7 +903,13 @@ def command_edit(context: Context, args: list[str]) -> int:
 	empty = '""'
 
 	for field_name, (old, new) in changes.items():
-		print(f"  {field_name}: {C.GRAY}{old or empty}{C.RESET} -> {new or empty}")
+		if field_name == "note":
+			was = note_display(old, "GRAY") if old else empty
+			now = note_display(new) if new else empty
+		else:
+			was, now = old or empty, new or empty
+
+		print(f"  {field_name}: {C.GRAY}{was}{C.RESET} -> {now}")
 
 	return 0
 

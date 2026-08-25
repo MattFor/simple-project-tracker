@@ -233,6 +233,29 @@ def test_editing_without_a_field_says_so(tmp_path: Path):
 	assert "requires a field" in stream.getvalue()
 
 
+def test_an_edited_note_shows_its_colours(tmp_path: Path):
+	from tracker.ui.ansi import C
+	from tracker.cli.commands import command_edit
+
+	holder = status_sample(tmp_path)
+
+	C.set_enabled(True)
+
+	try:
+		first = output(command_edit, holder, ["alpha", "note", "{red}broken{/} friday"])
+		second = output(command_edit, holder, ["alpha", "note", "{green}fixed{/}"])
+	finally:
+		C.set_enabled(False)
+
+	assert "{red}" not in first
+	assert "\033[31mbroken" in first
+
+	# The value it replaces is painted the same way
+	assert "{red}" not in second and "{green}" not in second
+	assert "\033[31mbroken" in second
+	assert "\033[32mfixed" in second
+
+
 def test_removing_a_project_leaves_the_other_numbers_alone(tmp_path: Path):
 	from tracker.cli.commands import command_remove
 	from tracker.core.selection import temporary_ids

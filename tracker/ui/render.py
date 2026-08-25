@@ -243,14 +243,18 @@ def note_of(project: Project) -> str:
 	return str(project.get("note", "") or "")
 
 
-def note_text(project: Project, base: str = "") -> str:
-	shown = markup(flatten(note_of(project)), base)
+def note_display(note: str, base: str = "") -> str:
+	shown = markup(flatten(note), base)
 
 	# Don't bleed into the rest of the file
 	if C.enabled and "\033[" in shown and not shown.endswith(C.RESET):
 		shown += C.RESET
 
 	return shown
+
+
+def note_text(project: Project, base: str = "") -> str:
+	return note_display(note_of(project), base)
 
 
 #

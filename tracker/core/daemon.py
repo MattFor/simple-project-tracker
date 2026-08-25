@@ -347,6 +347,7 @@ class ScanResult:
 	added: list[str] = field(default_factory=list)
 	removed: list[str] = field(default_factory=list)
 	moved: list[tuple[str, str]] = field(default_factory=list)
+	blocked: list[str] = field(default_factory=list)
 
 
 def _refresh(data: Projects, found: Projects, timestamp: str) -> None:
@@ -386,6 +387,33 @@ def _missing(
 	]
 
 
+VANISH_FLOOR = 3
+
+
+def _vanished_too_many(
+	data: Projects, valid: list[Path], gone: list[str], limit: int
+) -> list[str]:
+	if limit >= 100:
+		return []
+
+	fresh = [path for path in gone if not data[path].get("archived", False)]
+
+	if len(fresh) < VANISH_FLOOR:
+		return []
+
+	live = [
+		path
+		for path, project in data.items()
+		if not project.get("archived", False)
+		and any(Path(path).is_relative_to(root) for root in valid)
+	]
+
+	if not live or len(fresh) * 100 <= len(live) * limit:
+		return []
+
+	return fresh
+
+
 def merge_scan(
 	data: Projects,
 	valid: list[Path],
@@ -412,9 +440,15 @@ def merge_scan(
 		added.remove(new)
 		gone.remove(old)
 
+	limit: int = settings["scan"]["vanish_limit"]
+	blocked = set(_vanished_too_many(data, valid, gone, limit))
+
 	removed: list[str] = []
 
 	for project_path in gone:
+		if project_path in blocked:
+			continue
+
 		project = data[project_path]
 
 		if not archive:
@@ -430,7 +464,7 @@ def merge_scan(
 
 	_ = apply_labels({path: data[path] for path in data if path in found}, settings)
 
-	return ScanResult(data != before, added, removed, moved)
+	return ScanResult(data != before, added, removed, moved, sorted(blocked))
 
 
 def update_database(
@@ -610,6 +644,22 @@ def run(settings: Settings | None = None) -> int:
 				[("-", Path(path).name, path) for path in result.removed],
 				timestamp,
 			)
+
+			if result.blocked:
+				kept = _count(result.blocked)
+
+				print(f"[{timestamp}] [ERROR] refused to remove {kept}!")
+				print("  Too much of the database vanished in one scan!")
+				print("  Check the watched paths, then rescan with t init <path>")
+
+				_report(
+					"kept",
+					[
+						(str(data[path]["id"]), Path(path).name, path)
+						for path in result.blocked
+					],
+					timestamp,
+				)
 
 			if not result.added and not result.removed and result.changed:
 				print(f"[{timestamp}] database updated")
