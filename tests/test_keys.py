@@ -74,3 +74,23 @@ def test_a_resolved_name_can_be_overridden():
 
 def test_a_nested_table_entry_is_left_alone():
 	assert resolved("display.status_colours.dev") == "display.status_colours.dev"
+
+
+def test_a_scoped_display_answers_to_every_display_name():
+	assert resolved("todos.display.columns") == "todos.display.columns"
+	assert resolved("t.d.columns") == "todos.display.columns"
+	assert resolved("todos.display.list_lim") == "todos.display.list_limit"
+	assert resolved("t.d.np") == "todos.display.note_position"
+
+	assert (
+		resolved("todos.display.status_colours.dev") == "todos.display.status_colours.dev"
+	)
+
+
+def test_a_scoped_display_reports_what_a_name_could_mean():
+	found, candidates = resolve_key("t.d.sh")
+
+	assert found is None
+	assert candidates == ["todos.display.show_headers", "todos.display.show_notes"]
+
+	assert resolve_key("todos.display.nonsense") == (None, [])

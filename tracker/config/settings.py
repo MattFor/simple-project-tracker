@@ -3,14 +3,14 @@ import copy
 import tomllib
 import subprocess
 
-from pathlib import Path
 from typing import Any
+from pathlib import Path
 from collections.abc import Iterator
 
 from tracker.config import paths
 from tracker.util.files import read_toml
 from tracker.util.unknown import Unknown
-from tracker.config.defaults import CHOICES, OPEN_TABLES, defaults
+from tracker.config.defaults import CHOICES, DISPLAY_SCOPES, OPEN_TABLES, defaults
 
 
 def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -25,6 +25,34 @@ def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
 			merged[key] = value
 
 	return merged
+
+
+def _table(data: dict[str, Any], key: str) -> dict[str, Any]:
+	value = data.get(key)
+
+	if not isinstance(value, dict):
+		return {}
+
+	table: dict[str, Any] = value
+
+	return table
+
+
+def scope_of(path: str) -> str:
+	"""The section a <section>.display.<key> setting belongs to."""
+
+	for scope in DISPLAY_SCOPES:
+		if path.startswith(f"{scope}.display."):
+			return scope
+
+	return ""
+
+
+def shared_key(path: str) -> str:
+	scope = scope_of(path)
+
+	# Todos display settings mirror project display settings when they don't have their own customs
+	return path[len(scope) + 1 :] if scope else path
 
 
 def _flatten(data: dict[str, Any], prefix: str = "") -> Iterator[tuple[str, Any]]:
@@ -44,10 +72,13 @@ class Settings:
 		*,
 		path: Path | None = None,
 		problems: list[str] | None = None,
+		scope: str = "",
 	) -> None:
 		self._data: dict[str, Any] = {}
 		self._path: Path = path or paths.settings_file()
 		self._problems: list[str] = list(problems or [])
+		self._scope: str = scope
+		self._scopes: dict[str, Settings] = {}
 
 		if data is not None:
 			self._data = data
@@ -90,12 +121,16 @@ class Settings:
 		return [
 			f"unknown setting '{key}' in the configuration"
 			for key, _ in _flatten(loaded)
-			if key not in known
+			if shared_key(key) not in known
 		]
 
 	@property
 	def path(self) -> Path:
 		return self._path
+
+	@property
+	def scope(self) -> str:
+		return self._scope
 
 	@property
 	def raw(self) -> dict[str, Any]:
@@ -126,6 +161,28 @@ class Settings:
 	def __contains__(self, key: str) -> bool:
 		return key in self._data
 
+	def scoped(self, section: str) -> "Settings":
+		if self._scope == section:
+			return self
+
+		known = self._scopes.get(section)
+
+		if known is not None:
+			return known
+
+		own = _table(_table(self._data, section), "display")
+
+		data = self._data
+
+		if own:
+			data = {**data, "display": _merge(_table(data, "display"), own)}
+
+		view = Settings(data, path=self._path, problems=self._problems, scope=section)
+
+		self._scopes[section] = view
+
+		return view
+
 	def get(self, path: str, default: Any = None) -> Any:
 		current: Any = self._data
 
@@ -147,6 +204,9 @@ class Settings:
 		expected = self.get(path, Unknown())
 
 		if isinstance(expected, Unknown):
+			expected = self.get(shared_key(path), Unknown())
+
+		if isinstance(expected, Unknown):
 			raise KeyError(path)
 
 		value = coerce(path, value, expected)
@@ -162,7 +222,7 @@ class Settings:
 
 		current[keys[-1]] = value
 
-		return Settings(data, path=self._path, problems=self._problems)
+		return Settings(data, path=self._path, problems=self._problems, scope=self._scope)
 
 	def edit(self) -> None:
 		target = paths.editable_settings_file()
@@ -191,7 +251,7 @@ def parse_setting_value(value: str) -> Any:
 
 
 def coerce(path: str, value: Any, expected: Any) -> Any:
-	choices = CHOICES.get(path)
+	choices = CHOICES.get(shared_key(path))
 
 	if choices is not None:
 		text = str(value).strip().lower()

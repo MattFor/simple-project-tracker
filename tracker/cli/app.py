@@ -2,13 +2,13 @@ import sys
 
 from typing import Any
 
-from tracker.ui import ansi
-from tracker.cli import commands
 from tracker.ui.ansi import C
+from tracker.ui import ansi, mentions
 from tracker.core.storage import load_data
 from tracker.config.settings import Settings
 from tracker.ui.render import print_projects
-from tracker.cli.commands import Context, Handler
+from tracker.cli import commands, relocate, todo
+from tracker.cli.entries import Context, Handler
 
 COMMANDS: dict[str, str] = {
 	"version": "version",
@@ -62,6 +62,12 @@ COMMANDS: dict[str, str] = {
 	"stats": "stats",
 	"stat": "stats",
 	"summary": "stats",
+	"todo": "todo",
+	"todos": "todo",
+	"td": "todo",
+	"move": "move",
+	"mv": "move",
+	"relocate": "move",
 	"undo": "undo",
 	"u": "undo",
 	"revert": "undo",
@@ -86,15 +92,19 @@ HANDLERS: dict[str, Handler] = {
 	"status": commands.command_status,
 	"forget": commands.command_forget,
 	"completion": commands.command_completion,
+	"todo": todo.command_todo,
+	"move": relocate.command_move,
 }
 
-GREEDY = frozenset({"add", "completion", "edit", "note", "status"})
+GREEDY = frozenset({"add", "completion", "edit", "move", "note", "status", "todo"})
 
 SUBJECT = frozenset(
 	{"check", "edit", "forget", "note", "path", "remove", "show", "status"}
 )
 
 ACTIONS: dict[str, frozenset[str]] = {
+	"todo": frozenset(todo.ALIASES),
+	"move": frozenset(relocate.NAMES),
 	"edit": frozenset(commands.FIELD_ALIASES),
 	"forget": frozenset({"list", "l", "show", "clear", "c", "reset", "allow"}),
 	"settings": frozenset(
@@ -364,6 +374,9 @@ def main(argv: list[str] | None = None) -> int:
 		verbose=verbose,
 		assume_yes=bool(flags["yes"]),
 	)
+
+	# A note may point at a project, and these are already read
+	mentions.use(context.data)
 
 	context.log(f"settings: {settings.path}")
 	context.log(f"projects: {len(context.data)}")

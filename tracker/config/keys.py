@@ -1,7 +1,7 @@
 from typing import Any
 from collections.abc import Iterator
 
-from tracker.config.defaults import OPEN_TABLES, defaults
+from tracker.config.defaults import DISPLAY_SCOPES, OPEN_TABLES, defaults
 
 Tier = tuple[int, int]
 
@@ -82,6 +82,23 @@ def resolve_key(query: str) -> tuple[str | None, list[str]]:
 
 	if not query:
 		return None, []
+
+	head, _, rest = query.partition(".")
+	owner, _, wanted = rest.partition(".")
+
+	for scope in DISPLAY_SCOPES:
+		if not wanted or _match(head, scope) is None:
+			continue
+
+		if _match(owner, "display") is None:
+			continue
+
+		found, candidates = resolve_key(f"display.{wanted}")
+
+		if found is not None:
+			return f"{scope}.{found}", []
+
+		return None, [f"{scope}.{name}" for name in candidates]
 
 	if query.count(".") > 1:
 		owner, _, _ = query.rpartition(".")

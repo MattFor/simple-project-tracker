@@ -11,6 +11,7 @@ SETTINGS_NAME = "settings.toml"
 LOCAL_SETTINGS_NAME = "my_settings.toml"
 
 DEFAULT_DATA_FILE = "data.pkl"
+DEFAULT_TODO_FILE = "todos.pkl"
 
 
 #
@@ -211,6 +212,12 @@ def data_file(configured: str | None = None) -> Path:
 	return resolve(chosen, database_dir())
 
 
+def todo_file(configured: str | None = None) -> Path:
+	chosen = os.environ.get("TRACKER_TODOS") or configured or DEFAULT_TODO_FILE
+
+	return resolve(chosen, database_dir())
+
+
 def view_file() -> Path:
 	override = os.environ.get("TRACKER_VIEW")
 
@@ -218,6 +225,17 @@ def view_file() -> Path:
 		return resolve(override)
 
 	return state_dir() / "view.json"
+
+
+def todo_view_file() -> Path:
+	override = os.environ.get("TRACKER_TODO_VIEW")
+
+	if override:
+		return resolve(override)
+
+	current = view_file()
+
+	return current.with_name(f"todo-{current.name}")
 
 
 def daemon_pid_file() -> Path:

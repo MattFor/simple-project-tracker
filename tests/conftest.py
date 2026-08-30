@@ -13,6 +13,18 @@ from tracker.ui import ansi
 
 
 @pytest.fixture(autouse=True)
+def kept_environment() -> Iterator[None]:
+	"""No test may leave a variable behind for the next one."""
+
+	before = dict(os.environ)
+
+	yield
+
+	os.environ.clear()
+	os.environ.update(before)
+
+
+@pytest.fixture(autouse=True)
 def isolated_view(tmp_path: Path) -> Iterator[None]:
 	previous = os.environ.get("TRACKER_VIEW")
 

@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import datetime
 
+from tracker.ui import mentions
 from tracker.ui.ansi import C, markup
 from tracker.core.models import Project
 from tracker.config.settings import Settings
@@ -125,6 +126,19 @@ def print_details(
 					parts.append(f"{info.untracked} untracked")
 
 				_field("Working tree", ", ".join(parts), "yellow")
+
+	todos = mentions.todos_about(path, settings)
+
+	if todos:
+		from tracker.core.todos import sort_todos
+
+		_section("Todos")
+
+		for _, todo in sort_todos(todos, settings):
+			name = str(todo.get("name", ""))
+			status = str(todo.get("status", "unknown"))
+
+			_field(f"#{todo.get('id', '-')}", name, status_colour(status, settings))
 
 	note = str(project.get("note", "") or "")
 

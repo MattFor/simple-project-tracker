@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0]
+
+### Added
+
+- `todo`, `td`, a todo list with its own IDs, numbering and undo. Add, rename, note,
+  status, done, reopen, check, clear and remove.
+- Ability to move the settings file position directly.
+
 ## [1.0.4]
 
 - Added more colours, background colour support etc.

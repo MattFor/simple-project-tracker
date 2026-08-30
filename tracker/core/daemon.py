@@ -12,20 +12,22 @@ from pathlib import Path
 from dataclasses import dataclass, field
 
 from tracker.config import paths
-from tracker.config.settings import Settings, settings as default_settings
-from tracker.core.discovery import excluded, find_projects
-from tracker.core.identity import apply_moves
 from tracker.core.labels import apply_labels
+from tracker.core.identity import apply_moves
+from tracker.core.discovery import excluded, find_projects
+from tracker.config.settings import Settings, settings as default_settings
+
 from tracker.core.models import (
 	Projects,
 	archive as archive_project,
 	get_id,
 	restore,
 )
-from tracker.core.storage import data_path, load_data, save_data
+
 from tracker.ui.ansi import C
 from tracker.ui.ask import confirm
 from tracker.util.files import load_json, read_toml, save_json
+from tracker.core.storage import data_path, load_data, save_data
 
 
 #

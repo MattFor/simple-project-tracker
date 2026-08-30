@@ -18,6 +18,7 @@ TID | ID | NAME                          | STATUS  | LAST TOUCHED | NOTE
 
 - [Install](#install)
 - [Commands](#commands)
+- [Todos](#todos)
 - [Selecting projects](#selecting-projects)
 - [Configuration](#configuration)
 - [Development](#development)
@@ -46,9 +47,11 @@ Python 3.11+. Then `t init ~/(your project directory)` to fill the database.
 | `edit`       | `e`               | Change a `status` or a `note`                                        |
 | `note`       | `n`, `sn`         | Set a note without naming the field                                  |
 | `status`     | `st`, `ss`        | List statuses, set one, or move every project from one to another    |
+| `todo`       | `td`, `todos`     | A todo list of its own: add, edit, status, note, done, clear         |
 | `init`       | `i`, `scan`       | Scan a directory and merge the result into the database              |
 | `path`       | `p`, `where`      | Print a project's path, e.g. `cd "$(t path tracker)"`                |
 | `undo`       | `u`, `revert`     | Take back the last change, undo again to put it back                 |
+| `move`       | `mv`              | Move the settings, database or todo list, and point tracker at it    |
 | `stats`      | `summary`         | Totals, a breakdown by status, most and least recently touched       |
 | `settings`   | `s`, `config`     | Show, edit, get or set the configuration                             |
 | `completion` |                   | Print a shell completion script for bash, zsh or fish                |
@@ -74,6 +77,36 @@ t all          # everything with no limit and no filter
 
 For more information do: `t help`, `t help <command>` or `t help <topic>`. The full guide
 is within `man tracker`.
+
+## Todos
+
+List of notes that's separate from the main project database.
+
+```sh
+t td                          # the whole list
+t td add write the changelog  # the rest of the line is the name
+t td 3 done                   # also: t td done 3
+t td 3 st blocked             # any status you like
+t td 3 n waiting on review    # and a note under it
+t td list s:todo              # only what is still open
+t td clear                    # drop every finished one
+t td undo                     # take the last change back
+```
+
+```
+TID | ID | NAME                  | STATUS  | CREATED    | NOTE
+--- | -- | --------------------- | ------- | ---------- | ----------------------
+1   | 1  | write the changelog   | todo    | 2m ago     | blocked on the release
+2   | 2  | fix the daemon logs   | done    | 1h ago
+3   | 3  | ship the todo feature | review  | 1h ago     | shipped on a sunday
+3 todos, 2 left  (2 todo, 1 done)
+```
+
+A todo is selected exactly the same way a project is, and the same short forms apply.
+
+A note may point at a project with `@name`, printed as `name#id:tid` in that project's
+status colour. `t check <project>` then lists the todos about it, and `t td check <todo>`
+the projects it names.
 
 ## Selecting projects
 
@@ -116,6 +149,9 @@ or by its initials, with the section shortening the same way: `display.list_limi
 | `projects.auto_status`              | Status from how long ago a project was touched              |
 | `scan.detect_moves`                 | A moved project keeps its entry instead of looking deleted  |
 | `daemon.paths`, `daemon.interval`   | What the background scanner watches, and how often          |
+| `todos.new_status`, `.done_status`  | What a new todo is called, and what `done` and `clear` use  |
+| `todos.sort`, `todos.newest_first`  | How the todo list is ordered                                |
+| `[todos.display]`                   | Display settings the todo list alone uses                   |
 
 Notes can colour themselves: `t note 12 {red}broken{/} since friday`.
 
@@ -130,11 +166,13 @@ make check    # format, lint, types and tests (what CI runs)
 
 LLMs were used to:
 
-- write the help section
+- write tests
 - write the man page
+- write the help section
 - check for critical issues and annotation errors
 
-HOWEVER, the output was then manually reviewed and issues were fixed by a human.
+**HOWEVER**, the output was then manually reviewed and issues were fixed by a human.  
+I wanted to get this project out asap as I really needed it :P
 
 ## License
 

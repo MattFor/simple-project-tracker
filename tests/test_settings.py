@@ -151,6 +151,71 @@ def test_new_settings_are_known_and_validated():
 		raise AssertionError(f"{key} accepted {value}")
 
 
+def test_a_section_display_wins_over_the_shared_one():
+	settings = make_settings(
+		display__show_headers=False,
+		todos__display__show_headers=True,
+	)
+
+	todos = settings.scoped("todos")
+
+	assert todos["display"]["show_headers"] is True
+
+	assert todos["display"]["note_position"] == settings["display"]["note_position"]
+
+	assert settings["display"]["show_headers"] is False
+
+
+def test_a_section_without_a_display_changes_nothing():
+	settings = make_settings(display__show_headers=False)
+
+	assert settings.scoped("todos")["display"]["show_headers"] is False
+
+
+def test_a_scoped_status_colour_sits_over_the_shared_table():
+	from tracker.ui.render import status_colour
+
+	settings = make_settings(todos__display__status_colours={"done": "gray"})
+	todos = settings.scoped("todos")
+
+	assert status_colour("done", todos) == "gray"
+	assert status_colour("todo", todos) == "yellow"
+
+	assert status_colour("done", settings) == "cyan"
+
+
+def test_a_scoped_key_is_typed_like_the_one_it_mirrors():
+	settings = make_settings()
+
+	limited = settings.override("todos.display.list_limit", "5")
+
+	assert limited.get("todos.display.list_limit") == 5
+
+	for key, value in (
+		("todos.display.list_limit", "abc"),
+		("todos.display.name_style", "sideways"),
+	):
+		try:
+			_ = settings.override(key, value)
+		except ValueError:
+			continue
+
+		raise AssertionError(f"{key} accepted {value}")
+
+
+def test_a_scoped_table_is_written_to_a_section_of_its_own(tmp_path: Path):
+	path = tmp_path / "settings.toml"
+
+	_ = path.write_text('[todos]\nsort = "id"\n')
+
+	assert write_setting(path, "todos.display.columns", ["tid", "name"]) is None
+
+	data = tomllib.loads(path.read_text())
+
+	assert data["todos"]["display"]["columns"] == ["tid", "name"]
+	assert data["todos"]["sort"] == "id"
+
+
 def test_the_shipped_file_and_the_defaults_agree():
 	from tracker.config import paths
 
