@@ -1,13 +1,14 @@
 import os
 
-from fnmatch import fnmatch
 from pathlib import Path
+from fnmatch import fnmatch
 from datetime import datetime
 from collections.abc import Callable, Iterable
 
 from tracker.config.settings import Settings
 from tracker.core.identity import identity_of
 from tracker.core.labels import automatic_label
+
 from tracker.core.models import (
 	Project,
 	Projects,

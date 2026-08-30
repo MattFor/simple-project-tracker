@@ -70,6 +70,13 @@ def new_project(
 	return project
 
 
+def set_field(project: Project, field: str, value: str) -> None:
+	if field == "status":
+		project["status"] = value
+	elif field == "note":
+		project["note"] = value
+
+
 def normalise(projects: Any) -> Projects:
 	if not isinstance(projects, dict):
 		return {}

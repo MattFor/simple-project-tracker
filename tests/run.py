@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import io
 import os
 import sys
 import inspect
@@ -9,6 +10,7 @@ import traceback
 from typing import Any
 from pathlib import Path
 from collections.abc import Callable
+from contextlib import redirect_stderr, redirect_stdout
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -50,7 +52,7 @@ def main() -> int:
 	modules = sorted(path.stem for path in Path(__file__).parent.glob("test_*.py"))
 
 	passed = 0
-	failures: list[tuple[str, str]] = []
+	failures: list[tuple[str, str, str]] = []
 
 	for name in modules:
 		module = importlib.import_module(f"tests.{name}")
@@ -61,6 +63,8 @@ def main() -> int:
 
 			arguments: dict[str, Any] = {}
 			sandbox = Path(tempfile.mkdtemp()).resolve()
+
+			environment = dict(os.environ)
 
 			os.environ["TRACKER_VIEW"] = str(sandbox / "view.json")
 
@@ -75,16 +79,28 @@ def main() -> int:
 			if "monkeypatch" in parameters:
 				arguments["monkeypatch"] = patch
 
+			said = io.StringIO()
+
 			try:
-				_ = function(**arguments)
+				with redirect_stdout(said), redirect_stderr(said):
+					_ = function(**arguments)
+
 				passed += 1
 			except Exception:
-				failures.append((f"{name}.{attribute}", traceback.format_exc()))
+				failures.append(
+					(f"{name}.{attribute}", traceback.format_exc(), said.getvalue())
+				)
 			finally:
 				patch.undo()
 
-	for name, error in failures:
+				os.environ.clear()
+				os.environ.update(environment)
+
+	for name, error, said in failures:
 		print(f"FAILED {name}\n{error}")
+
+		if said.strip():
+			print(f"--- what it printed ---\n{said.rstrip()}\n")
 
 	print(f"{passed} passed, {len(failures)} failed")
 

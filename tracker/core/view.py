@@ -1,4 +1,5 @@
 from typing import Any
+from pathlib import Path
 
 from tracker.config import paths
 from tracker.core.storage import data_path
@@ -12,12 +13,10 @@ def _database(settings: Settings) -> str:
 	return str(data_path(settings))
 
 
-def load_numbering(settings: Settings | None = None) -> Numbering | None:
-	settings = settings or default_settings
+def load_view(file: Path, database: str) -> Numbering | None:
+	stored = load_json(file)
 
-	stored = load_json(paths.view_file())
-
-	if stored is None or stored.get("database") != _database(settings):
+	if stored is None or stored.get("database") != database:
 		return None
 
 	order: Any = stored.get("order")
@@ -25,24 +24,34 @@ def load_numbering(settings: Settings | None = None) -> Numbering | None:
 	if not isinstance(order, list):
 		return None
 
-	paths_in_view: list[Any] = order
+	keys_in_view: list[Any] = order
 
 	return {
-		str(path): number
-		for number, path in enumerate(paths_in_view, 1)
-		if isinstance(path, str)
+		str(key): number
+		for number, key in enumerate(keys_in_view, 1)
+		if isinstance(key, str)
 	}
+
+
+def save_view(file: Path, database: str, numbering: Numbering) -> bool:
+	ordered = sorted(numbering.items(), key=lambda item: item[1])
+
+	return save_json(
+		file,
+		{
+			"database": database,
+			"order": [key for key, _ in ordered],
+		},
+	)
+
+
+def load_numbering(settings: Settings | None = None) -> Numbering | None:
+	settings = settings or default_settings
+
+	return load_view(paths.view_file(), _database(settings))
 
 
 def save_numbering(numbering: Numbering, settings: Settings | None = None) -> bool:
 	settings = settings or default_settings
 
-	ordered = sorted(numbering.items(), key=lambda item: item[1])
-
-	return save_json(
-		paths.view_file(),
-		{
-			"database": _database(settings),
-			"order": [path for path, _ in ordered],
-		},
-	)
+	return save_view(paths.view_file(), _database(settings), numbering)

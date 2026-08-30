@@ -7,6 +7,10 @@ data.pkl
 data.pkl.undo
 data.pkl.corrupt-*
 
+todos.pkl
+todos.pkl.undo
+todos.pkl.corrupt-*
+
 __pycache__
 *.py[cod]
 

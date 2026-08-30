@@ -25,8 +25,8 @@
          {GREEN}tracker help selection{RESET}
 
       {GRAY}Topics: usage, commands, short forms, project selection, statuses,{RESET}
-      {GRAY}list filters, timestamps, row format, names, notes, options,{RESET}
-      {GRAY}configuration.{RESET}
+      {GRAY}todo list, list filters, timestamps, row format, names, notes,{RESET}
+      {GRAY}options, configuration.{RESET}
 
    {YELLOW}version{RESET}, {GRAY}v, -v, --version{RESET}
       Show the program version.
@@ -69,6 +69,9 @@
          {GREEN}tracker check tracker{RESET}
          {GREEN}tracker check 42{RESET}
          {GREEN}tracker check 1-5{RESET}
+
+      {GRAY}The todos whose name or note mentions the project are listed too, see{RESET}
+      {GRAY}{GREEN}tracker help todo list{GRAY}.{RESET}
 
       {GRAY}A bare project name does the same when it matches one project, and{RESET}
       {GRAY}prints a row per project when it matches several. A word that names no{RESET}
@@ -146,6 +149,39 @@
 
       {GRAY}Projects that already hold the new status are counted, not rewritten.{RESET}
 
+   {YELLOW}todo{RESET}, {GRAY}td, todos{RESET}
+      Keep a list of things to do, in their own space beside the projects.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}tracker todo{RESET}
+         {GREEN}tracker todo add <what to do...>{RESET}
+         {GREEN}tracker todo done <selection>{RESET}
+         {GREEN}tracker todo reopen <selection>{RESET}
+         {GREEN}tracker todo status <selection> <value>{RESET}
+         {GREEN}tracker todo note <selection> <value...>{RESET}
+         {GREEN}tracker todo rename <selection> <value...>{RESET}
+         {GREEN}tracker todo check <selection>{RESET}
+         {GREEN}tracker todo remove <selection>{RESET}
+         {GREEN}tracker todo clear{RESET}
+         {GREEN}tracker todo undo{RESET}
+
+      {GRAY}Examples:{RESET}
+         {GREEN}t td{RESET}                             {GRAY}the whole list{RESET}
+         {GREEN}t td add write the changelog{RESET}
+         {GREEN}t td 3 done{RESET}                      {GRAY}or {GREEN}t td done 3{RESET}
+         {GREEN}t td 3 st blocked{RESET}
+         {GREEN}t td 3 n {y}waiting{/} on @tracker{RESET}
+         {GREEN}t td list s:todo{RESET}                 {GRAY}only what is still open{RESET}
+         {GREEN}t td changelog{RESET}                   {GRAY}find one by name{RESET}
+         {GREEN}t td clear{RESET}                       {GRAY}drop every finished one{RESET}
+
+      {GRAY}A todo is a name, a status and a note, selected the same way a project{RESET}
+      {GRAY}is: by ID, TID, range, {GREEN}s:status{GRAY}, name or {GREEN}all{GRAY}. A note may point at a{RESET}
+      {GRAY}project with {GREEN}@name{GRAY}. See {GREEN}tracker help todo list{GRAY}.{RESET}
+
+      {GRAY}Actions: list, add, remove, clear, edit, note, rename, status, done,{RESET}
+      {GRAY}reopen, check, stats, undo.{RESET}
+
    {YELLOW}forget{RESET}, {GRAY}ignore{RESET}
       Stop tracking projects and keep scans from finding them again.
 
@@ -174,6 +210,37 @@
 
       {GRAY}Usage:{RESET}
          {GREEN}cd "$(tracker path tracker)"{RESET}
+
+   {YELLOW}move{RESET}, {GRAY}mv, relocate{RESET}
+      Move the settings, the database or the todo list somewhere else, and point
+      tracker at the new place.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}tracker move{RESET}
+         {GREEN}tracker move <what>{RESET}
+         {GREEN}tracker move <what> <where>{RESET}
+
+      {GRAY}Examples:{RESET}
+         {GREEN}tracker move{RESET}                                {GRAY}where all three live{RESET}
+         {GREEN}tracker move todos ~/synchronised-folder/todos.pkl{RESET}
+         {GREEN}tracker move todos ~/synchronised-folder{RESET}             {GRAY}a directory keeps the name{RESET}
+         {GREEN}tracker move settings ~/synchronised-folder/tracker{RESET}
+         {GREEN}tracker move database /media/usb/data.pkl{RESET}
+         {GREEN}t mvt ~/synchronised-folder{RESET}                          {GRAY}also: {GREEN}t mvs{GRAY}, {GREEN}t mvd{RESET}
+
+      {GRAY}What may be moved: {GREEN}settings{GRAY} ({GREEN}config{GRAY}), {GREEN}database{GRAY} ({GREEN}data{GRAY}, {GREEN}projects{GRAY}) and{RESET}
+      {GRAY}{GREEN}todos{GRAY} ({GREEN}list{GRAY}). The {GREEN}.undo{GRAY} copy beside a database travels with it.{RESET}
+
+      {GRAY}A path typed with {GREEN}~{GRAY} is stored as typed, so the same settings file suits{RESET}
+      {GRAY}another machine. The database and the todo list are pointed at through{RESET}
+      {GRAY}{GREEN}database.file{GRAY} and {GREEN}todos.database{GRAY}; the settings cannot name themselves, so{RESET}
+      {GRAY}{GREEN}~/.config/tracker/settings.toml{GRAY} is made a link to wherever they went.{RESET}
+
+      {GRAY}A file already waiting at the destination is kept, not overwritten, and{RESET}
+      {GRAY}tracker simply starts using it. That is what a second machine wants when{RESET}
+      {GRAY}the folder is already syncing.{RESET}
+
+      {GRAY}A running daemon follows on its next scan.{RESET}
 
    {YELLOW}undo{RESET}, {GRAY}u, revert{RESET}
       Take back the last change made to the database.
@@ -240,6 +307,11 @@
    {GREEN}t es{RESET}     {GRAY}edit status{RESET}            {GREEN}t fc{RESET}             {GRAY}forget clear{RESET}
    {GREEN}t en{RESET}     {GRAY}edit note{RESET}             {GREEN}t ss <value>{RESET}     {GRAY}set status{RESET}
                                    {GREEN}t sn <value...>{RESET}  {GRAY}set note{RESET}
+
+   {GREEN}t tda{RESET}    {GRAY}todo add{RESET}               {GREEN}t tdd <todo>{RESET}     {GRAY}todo done{RESET}
+   {GREEN}t tdl{RESET}    {GRAY}todo list{RESET}              {GREEN}t tdo <todo>{RESET}     {GRAY}todo reopen{RESET}
+   {GREEN}t tds{RESET}    {GRAY}todo status{RESET}            {GREEN}t tdr <todo>{RESET}     {GRAY}todo remove{RESET}
+   {GREEN}t tdn{RESET}    {GRAY}todo note{RESET}              {GREEN}t tdc <todo>{RESET}     {GRAY}todo check{RESET}
 
    {GRAY}Only a command plus its own action fuses. Put a project that collides after {GREEN}--{GRAY}.{RESET}
 
@@ -358,6 +430,95 @@
    {GRAY}statuses named in the rules and {GREEN}projects.default_status{GRAY} are ever rewritten,{RESET}
    {GRAY}so anything you set by hand stays where you put it.{RESET}
 
+{BOLD}Todo list:{RESET}
+   {GRAY}The todo list is a second, smaller database: a name, a status and a note{RESET}
+   {GRAY}per entry, with its own IDs, its own numbering and its own undo.{RESET}
+
+   {GREEN}t td{RESET}                     {GRAY}every todo{RESET}
+   {GREEN}t td add <what to do>{RESET}    {GRAY}the rest of the line is the name{RESET}
+   {GREEN}t td done <selection>{RESET}    {GRAY}stamps it and marks it {GREEN}done{RESET}
+   {GREEN}t td reopen <selection>{RESET}  {GRAY}puts it back{RESET}
+   {GREEN}t td clear{RESET}               {GRAY}removes every finished one{RESET}
+   {GREEN}t td undo{RESET}                {GRAY}takes back the last change to the list{RESET}
+
+   {GRAY}Selection works exactly as it does for projects:{RESET}
+
+      {GREEN}t td 3{RESET}                {GRAY}by ID{RESET}
+      {GREEN}t td :3{RESET}               {GRAY}by the row of the last listing{RESET}
+      {GREEN}t td 2-5 done{RESET}         {GRAY}a range{RESET}
+      {GREEN}t td s:blocked{RESET}        {GRAY}every todo with that status{RESET}
+      {GREEN}t td changelog{RESET}        {GRAY}by name, whole or in part{RESET}
+      {GREEN}t td all done{RESET}         {GRAY}the lot{RESET}
+
+   {GRAY}Listing:{RESET}
+
+      {GREEN}t td list s:todo{RESET}      {GRAY}only those{RESET}
+      {GREEN}t td list '!s:done'{RESET}   {GRAY}everything else{RESET}
+      {GREEN}t td list r:^ship{RESET}     {GRAY}by regex, {GREEN}m:{GRAY} and {GREEN}-m:{GRAY} as well{RESET}
+      {GREEN}t td list changelog{RESET}   {GRAY}search the names and the notes{RESET}
+      {GREEN}t td stats{RESET}            {GRAY}the counts alone{RESET}
+
+   {GRAY}The filters are the ones {GREEN}tracker list{GRAY} takes, see {GREEN}tracker help filters{GRAY}.{RESET}
+
+   {GRAY}A todo may come before its action, the way a project may:{RESET}
+
+      {GREEN}t td 3 done{RESET}           {GRAY}the same as {GREEN}t td done 3{RESET}
+      {GREEN}t td 3 st blocked{RESET}
+      {GREEN}t td 3 nt {r}broken{/} build{RESET}
+
+   {GRAY}Editing takes the same fields and short forms as a project does:{RESET}
+
+      {GREEN}t td edit 3 status blocked{RESET}
+      {GREEN}t td edit 3 name write the changelog{RESET}
+      {GREEN}t td edit 3 note picked up again{RESET}
+      {GREEN}t td 3 nt{RESET}             {GRAY}clears the note{RESET}
+
+   {GRAY}Statuses are free text and share {GREEN}display.status_colours{GRAY} with projects,{RESET}
+   {GRAY}so {GREEN}todo{GRAY}, {GREEN}blocked{GRAY} and {GREEN}done{GRAY} are already coloured. A{RESET}
+   {GRAY}{GREEN}[todos.display.status_colours]{GRAY} table recolours them for todos alone.{RESET}
+
+   {GRAY}Mentions:{RESET}
+
+   {GRAY}A note may point at a project with {GREEN}@name{GRAY}. It prints as the project, its{RESET}
+   {GRAY}ID and the row it last held, in the colour of its status:{RESET}
+
+      {GREEN}t td 3 nt blocked by @tracker{RESET}   {GRAY}tracker#8:1{RESET}
+      {GREEN}t td 3 nt see @(von neumann){RESET}    {GRAY}brackets hold a name with spaces{RESET}
+      {GREEN}t td 3 nt see @12{RESET}               {GRAY}by ID{RESET}
+
+   {GRAY}A mention that names no project, or more than one, stays as written.{RESET}
+
+   {GRAY}Both sides then know about each other: {GREEN}tracker check <project>{GRAY} lists the{RESET}
+   {GRAY}todos about it, and {GREEN}t td check <todo>{GRAY} lists the projects it names.{RESET}
+
+   {GRAY}Configuration:{RESET}
+      {GREEN}todos.database{RESET}      where the list is kept, todos.pkl by default
+      {GREEN}todos.new_status{RESET}    the status a new todo gets, and what reopen sets
+      {GREEN}todos.done_status{RESET}   the status done sets, and what clear removes
+      {GREEN}todos.sort{RESET}          id, name, status, created, updated
+      {GREEN}todos.newest_first{RESET}  turn the order around
+
+   {GRAY}Display:{RESET}
+
+   {GRAY}The list is drawn with {GREEN}[display]{GRAY}, except for what {GREEN}[todos.display]{GRAY} sets.{RESET}
+   {GRAY}A key left out of it is inherited, and only that way round: {GREEN}[display]{GRAY} is{RESET}
+   {GRAY}never touched by {GREEN}[todos.display]{GRAY}.{RESET}
+
+   {GRAY}A todo still wearing {GREEN}todos.new_status{GRAY} prints without a status, and the{RESET}
+   {GRAY}column goes when nothing in the listing has one worth showing.{RESET}
+
+   {GRAY}It takes the keys {GREEN}[display]{GRAY} takes, as far as a todo has them. Its columns{RESET}
+   {GRAY}are {GREEN}tid{GRAY}, {GREEN}id{GRAY}, {GREEN}name{GRAY}, {GREEN}status{GRAY}, {GREEN}created{GRAY}, {GREEN}updated{GRAY}, {GREEN}done_at{GRAY} and {GREEN}note{GRAY}, with{RESET}
+   {GRAY}{GREEN}last_touched{GRAY} and {GREEN}last_used{GRAY} read as {GREEN}created{GRAY} and {GREEN}updated{GRAY} so that a shared{RESET}
+   {GRAY}{GREEN}display.columns{GRAY} keeps working. A todo has no path, version or language.{RESET}
+
+      {GREEN}t settings set t.d.columns tid,name,status,updated{RESET}
+      {GREEN}t settings set t.d.show_headers true{RESET}
+      {GREEN}t settings get t.d.show_notes{RESET}   {GRAY}says where the value came from{RESET}
+
+   {GRAY}{GREEN}tracker todo{GRAY} takes the word {GREEN}todo{GRAY} for itself, so a project whose status is{RESET}
+   {GRAY}todo is listed with {GREEN}tracker s:todo{GRAY} instead of {GREEN}tracker todo{GRAY}.{RESET}
+
 {BOLD}Timestamps:{RESET}
    {GRAY}Every project carries when it was last touched on disk, and when you last{RESET}
    {GRAY}looked at it with tracker.{RESET}
@@ -456,6 +617,7 @@
    {GRAY}Files:{RESET}
       {GREEN}~/.config/tracker/settings.toml{RESET}      configuration
       {GREEN}~/.local/share/tracker/data.pkl{RESET}      database
+      {GREEN}~/.local/share/tracker/todos.pkl{RESET}     todo list
       {GREEN}~/.local/state/tracker/view.json{RESET}     the numbering of the last listing
       {GREEN}~/.local/state/tracker/{RESET}              daemon pid and log
 
@@ -497,6 +659,7 @@
    {GRAY}Environment:{RESET}
       {GREEN}TRACKER_SETTINGS{RESET}   use a different settings file
       {GREEN}TRACKER_DATA{RESET}       use a different database file
+      {GREEN}TRACKER_TODOS{RESET}      use a different todo list file
       {GREEN}TRACKER_VIEW{RESET}       use a different file for the temporary numbering
       {GREEN}TRACKER_SHARE{RESET}      use a different directory for the shipped files
       {GREEN}NO_COLOR{RESET}           disable colour
@@ -519,5 +682,9 @@
    {GREEN}tracker remove tracker{RESET}
    {GREEN}tracker init ~/Programming{RESET}
    {GREEN}tracker stats{RESET}
+   {GREEN}tracker todo{RESET}
+   {GREEN}tracker todo add write the changelog{RESET}
+   {GREEN}tracker td 3 done{RESET}
+   {GREEN}tracker td 3 st blocked{RESET}
    {GREEN}tracker settings set display.list_limit 30{RESET}
    {GREEN}tracker daemon status{RESET}

@@ -8,7 +8,8 @@ from contextlib import redirect_stdout
 from tests.helpers import SAMPLE, make_projects, make_settings
 
 from tracker.cli.app import main
-from tracker.cli.commands import Context, command_list, command_show
+from tracker.cli.entries import Context
+from tracker.cli.commands import command_list, command_show
 
 
 def context(tmp_path: Path, **overrides: object) -> Context:

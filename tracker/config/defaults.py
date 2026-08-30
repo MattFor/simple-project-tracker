@@ -25,6 +25,27 @@ SORT_KEYS = (
 
 SORT_DIRECTIONS = ("ascending", "descending")
 
+TODO_SORT_KEYS = (
+	"id",
+	"name",
+	"status",
+	"created",
+	"updated",
+)
+
+TODO_COLUMNS = (
+	"tid",
+	"id",
+	"name",
+	"status",
+	"created",
+	"updated",
+	"done_at",
+)
+
+# Sections with a [<section>.display] table of their own
+DISPLAY_SCOPES = ("todos",)
+
 NOTE_POSITIONS = ("auto", "inline", "below")
 
 RELATIVE_STYLES = ("long", "short")
@@ -142,6 +163,14 @@ def defaults() -> dict[str, Any]:
 			"compact": False,
 			"absolute_paths": True,
 		},
+		"todos": {
+			"display": {},
+			"database": "todos.pkl",
+			"new_status": "todo",
+			"done_status": "done",
+			"sort": "id",
+			"newest_first": False,
+		},
 		"database": {
 			"file": "data.pkl",
 		},
@@ -162,6 +191,7 @@ SECTION_TITLES = {
 	"sorting": "Sorting",
 	"projects": "Projects",
 	"scan": "Scanning",
+	"todos": "Todos",
 	"output": "Output",
 	"database": "Database",
 	"logging": "Logging",
@@ -174,8 +204,15 @@ CHOICES: dict[str, tuple[str, ...]] = {
 	"display.relative_style": RELATIVE_STYLES,
 	"sorting.by": SORT_KEYS,
 	"sorting.direction": SORT_DIRECTIONS,
+	"todos.sort": TODO_SORT_KEYS,
 	"projects.conflict_resolution_preference": CONFLICT_PREFERENCES,
 	"projects.number_preference": NUMBER_PREFERENCES,
 }
 
-OPEN_TABLES = frozenset({"display.status_colours", "projects.auto_status_rules"})
+OPEN_TABLES = frozenset(
+	{
+		"display.status_colours",
+		"projects.auto_status_rules",
+		*(f"{scope}.display.status_colours" for scope in DISPLAY_SCOPES),
+	}
+)

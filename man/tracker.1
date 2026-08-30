@@ -1,4 +1,4 @@
-.TH TRACKER 1 "August 23, 2026" "tracker 1.0.4" "User Commands"
+.TH TRACKER 1 "August 29, 2026" "tracker 1.1.0" "User Commands"
 
 .SH NAME
 tracker \- simple project tracker by MattFor
@@ -107,6 +107,38 @@ selector it moves every project from one status to another, for example
 Projects that already hold the new status are counted, not rewritten.
 
 .TP
+.BR todo ", " td ", " todos
+Keep a list of things to do beside the projects, in a database of its own. A
+todo is a name, a status and a note, selected the way a project is: by ID, TID,
+range, name,
+.B all
+or
+.BI s: status .
+Takes
+.BR list ", " add ", " remove ", " clear ", " edit ", " note ", " rename ", "
+.BR status ", " done ", " reopen ", " check ", " stats " and " undo ,
+for example
+.BR "tracker todo add write the changelog" " or " "tracker td 3 done" .
+The action may follow the todo, so
+.B "tracker td 3 st blocked"
+and
+.B "tracker td status 3 blocked"
+are the same. With no action at all the whole list is printed. The list has its
+own IDs, its own numbering and its own undo. A note may point at a project with
+.BI @ name ,
+printed as the project, its ID and the row it last held, in the colour of its
+status; one that names no project, or more than one, is left as written. Both
+sides then know about each other:
+.B "tracker check <project>"
+lists the todos whose name or note is about it, and
+.B "tracker td check <todo>"
+lists the projects it names. See
+.BR todos.database ", " todos.new_status ", " todos.done_status ", " todos.sort
+and
+.B todos.newest_first
+in the settings.
+
+.TP
 .BR forget ", " ignore
 Stop tracking the selected projects and keep future scans from finding them
 again. The paths are written to
@@ -136,6 +168,27 @@ change, and neither is a scan by the daemon, so neither of them can lose an
 undo. Undoing twice puts things back. The database as it was is kept beside it,
 as
 .IR data.pkl.undo .
+
+.TP
+.BR move ", " mv ", " relocate
+Move the settings, the database or the todo list somewhere else and point
+tracker at the new place, for example
+.BR "tracker move todos ~/synchronised-folder/todos.pkl" .
+With no arguments it prints where all three live. A destination that is a
+directory, or ends with a slash, keeps the name the file has, and the
+.I .undo
+copy beside a database travels with it. A path typed with a tilde is stored as
+typed, so the same settings file suits another machine. The database and the
+todo list are pointed at through
+.B database.file
+and
+.BR todos.database ;
+the settings cannot name themselves, so
+.I ~/.config/tracker/settings.toml
+is made a link to wherever they went. A file already waiting at the destination
+is kept rather than overwritten and simply used, which is what a second machine
+wants when the folder is already syncing. A running daemon follows on its next
+scan.
 
 .TP
 .BR stats ", " summary
@@ -187,6 +240,9 @@ forget list, forget clear
 .TP
 .BR es ", " en
 edit status, edit note
+.TP
+.BR tda ", " tdl ", " tdd ", " tdo ", " tdr ", " tds ", " tdn ", " tdc
+todo add, list, done, reopen, remove, status, note, check
 .PP
 Only a command and its own action fuse.
 .BR -- .
@@ -527,6 +583,41 @@ from the checkout instead, and keeps the database there too.
 
 Any setting left out of your file falls back to the built in default, so a
 partial configuration file is fine.
+.PP
+The todo list draws itself with
+.BR [display] ,
+except for what
+.B [todos.display]
+sets. A key left out of it is inherited from
+.B [display]
+and then from the defaults, and the inheritance runs one way only:
+.B [display]
+never picks anything up from
+.BR [todos.display] .
+The keys are the ones
+.B [display]
+has, as far as a todo has them, and its columns are
+.BR tid ", " id ", " name ", " status ", " created ", " updated ", " done_at
+and
+.BR note ", "
+with
+.B last_touched
+and
+.B last_used
+understood as
+.B created
+and
+.BR updated .
+A
+.B [todos.display.status_colours]
+table sits over
+.B [display.status_colours]
+one status at a time.
+.PP
+A todo still wearing
+.B todos.new_status
+prints without a status, and the column itself is left out when nothing in the
+listing has one worth showing.
 
 Settings can be overridden for a single command:
 .PP
@@ -596,8 +687,16 @@ Use a different settings file.
 .B TRACKER_DATA
 Use a different database file.
 .TP
+.B TRACKER_TODOS
+Use a different todo list file.
+.TP
 .B TRACKER_VIEW
 Use a different file for the numbering of the last listing.
+.TP
+.B TRACKER_TODO_VIEW
+Use a different file for the numbering of the last todo listing. Without it the
+todo numbering follows
+.BR TRACKER_VIEW .
 .TP
 .B TRACKER_SHARE
 Look for the shipped help text and default settings in this directory.
@@ -627,6 +726,11 @@ tracker tracker st current
 tracker remove tracker
 tracker init ~/Programming
 tracker stats
+tracker todo
+tracker todo add write the changelog
+tracker td 3 done
+tracker td 3 st blocked
+tracker td list s:todo
 tracker settings set display.list_limit 30
 tracker daemon status
 .fi
@@ -641,8 +745,16 @@ Your configuration.
 Project database.
 
 .TP
+.I ~/.local/share/tracker/todos.pkl
+Todo list.
+
+.TP
 .I ~/.local/state/tracker/view.json
 The numbering of the last listing, what a temporary ID points at.
+
+.TP
+.I ~/.local/state/tracker/todo-view.json
+The numbering of the last todo listing.
 
 .TP
 .I ~/.local/state/tracker/daemon.log
@@ -656,4 +768,4 @@ Daemon process ID.
 MattFor
 
 .SH VERSION
-1.0.4
+1.1.0

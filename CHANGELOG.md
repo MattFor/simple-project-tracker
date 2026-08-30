@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.1.0]
+
+### Added
+
+- `todo`, `td`, a todo list with its own IDs, numbering and undo. Add, rename, note,
+  status, done, reopen, check, clear and remove, selected the way a project is and fused
+  the same way: `t tda`, `t tdl`, `t tdd`.
+- `[todos]` settings: `database`, `new_status`, `done_status`, `sort` and `newest_first`.
+- `@name` in a todo note prints as `name#id:tid` in the colour of that project's status,
+  `@(two words)` and `@12` too. One that names no project is left as written.
+- A todo listing takes the filters `tracker list` takes.
+- `check` reads both ways: the todos about a project, and the projects a todo names.
+- `move`, `mv`, puts the settings, the database or the todo list somewhere else and
+  points tracker at it. `t move` alone says where all three are.
+- `[todos.display]`, the display settings the todo list alone uses. A key left out of it
+  is inherited from `[display]` and then from the defaults, and only that way round:
+  `[display]` never picks anything up from `[todos.display]`. `[todos.display.status_colours]`
+  sits over `[display.status_colours]` one status at a time.
+- The todo table takes a `format` of its own, and its columns may be named outright:
+  `tid`, `id`, `name`, `status`, `created`, `updated`, `done_at` and `note`, with
+  `last_touched` and `last_used` read as `created` and `updated` so a shared
+  `display.columns` keeps working.
+- `settings get` and `settings set` reach a nested table, `todos.display.columns` and
+  `display.status_colours.todo` alike, shortened the usual way as `t.d.columns`. `get`
+  says which setting an inherited value came from.
+
 ## [1.0.4]
 
 - Added more colours, background colour support etc.

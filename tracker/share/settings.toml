@@ -224,6 +224,53 @@ compact = false
 absolute_paths = true
 
 
+[todos]
+# TRACKER_TODOS overrides this.
+database = "todos.pkl"
+
+# The status a new todo is given.
+new_status = "todo"
+
+# The status done sets, and the one clear removes.
+done_status = "done"
+
+# How the list is ordered.
+# id / name / status / created / updated
+sort = "id"
+
+# Turn the order around, newest or last of its kind first.
+newest_first = false
+
+
+# The todo list draws itself with [display], except for what is set here.
+# Anything left out is inherited:
+#
+# The keys are the ones [display] has, todo has these:
+#
+#   columns, format, show_headers, show_notes, note_position, note_min_width,
+#   time_format, relative_times, relative_style, vertical_separator,
+#   horizontal_separator, max_width and [todos.display.status_colours]
+#
+# Todo colums:
+#
+#   tid / id / name / status / created / updated / done_at / note
+#
+# last_touched and last_used also work
+#
+# columns = ["tid", "name", "status", "created"]
+# format = "$>tid. $name [$status] $updated"
+# show_headers = true
+# relative_times = true
+# P.S [display] never picks anything up from here.
+[todos.display]
+
+# Colour per todo status, over the top of [display.status_colours].
+#
+# [todos.display.status_colours]
+# todo = "yellow"
+# done = "gray"
+
+
 [database]
 # Relative paths are resolved against the project directory.
 # TRACKER_DATA overrides this.
