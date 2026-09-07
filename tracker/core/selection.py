@@ -1,15 +1,11 @@
 import os
-
-from typing import Any
-from pathlib import Path
 from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
-from tracker.util.text import parse_time
-from tracker.core.frecency import best_match
-from tracker.config.settings import Settings
 from tracker.config.defaults import SORT_KEYS
-from tracker.core.models import Project, Projects
-
+from tracker.config.settings import Settings
+from tracker.core import entries as shared
 from tracker.core.entries import (
 	ALL_SELECTORS,
 	FILTER_TYPES,
@@ -24,8 +20,9 @@ from tracker.core.entries import (
 	status_of,
 	status_values,
 )
-
-from tracker.core import entries as shared
+from tracker.core.frecency import best_match
+from tracker.core.models import Project, Projects
+from tracker.util.text import parse_time
 
 __all__ = [
 	"ALL_SELECTORS",

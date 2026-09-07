@@ -1,12 +1,10 @@
 import io
 import os
 import tomllib
-
-from pathlib import Path
 from contextlib import redirect_stdout
+from pathlib import Path
 
 from tests.helpers import make_settings
-
 from tracker.cli.app import fuse, split
 from tracker.cli.entries import Context
 from tracker.cli.relocate import command_move

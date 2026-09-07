@@ -1,10 +1,10 @@
+import shutil
 from pathlib import Path
 
 from tests.helpers import make_settings
-
 from tracker.core.daemon import merge_scan
 from tracker.core.discovery import find_projects
-from tracker.core.models import Projects, archive, new_project
+from tracker.core.models import Project, Projects, archive, new_project
 
 
 def build(root: Path, *names: str) -> None:
@@ -268,3 +268,84 @@ def test_the_brake_can_be_lifted(tmp_path: Path):
 
 	assert len(result.removed) == 4
 	assert not result.blocked
+
+
+#
+# A database two machines share
+#
+
+
+def elsewhere(*projects: Project) -> None:
+	for project in projects:
+		project["seen"] = ["someothermachine"]
+
+
+def test_a_project_only_the_other_machine_has_is_left_alone(tmp_path: Path):
+	build(tmp_path, "alpha")
+
+	settings = make_settings()
+	found = find_projects(str(tmp_path), settings)
+
+	only_there = str(tmp_path / "beta")
+
+	data: Projects = {
+		only_there: new_project(only_there, status="dev", note="theirs", project_id=2)
+	}
+
+	elsewhere(data[only_there])
+
+	result = merge_scan(data, [tmp_path], found, True, settings)
+
+	assert not result.removed
+	assert not data[only_there].get("archived", False)
+	assert data[only_there].get("note") == "theirs"
+
+
+def test_losing_a_project_the_other_machine_still_has_does_not_bury_it(
+	tmp_path: Path,
+):
+	build(tmp_path, "alpha", "beta")
+
+	settings = make_settings()
+	found = find_projects(str(tmp_path), settings)
+
+	data: Projects = {}
+
+	_ = merge_scan(data, [tmp_path], found, True, settings)
+
+	beta = str(tmp_path / "beta")
+
+	data[beta]["seen"] = sorted([*data[beta].get("seen", []), "someothermachine"])
+
+	shutil.rmtree(tmp_path / "beta")
+
+	result = merge_scan(
+		data, [tmp_path], find_projects(str(tmp_path), settings), True, settings
+	)
+
+	assert not result.removed
+	assert not data[beta].get("archived", False)
+	assert data[beta].get("seen") == ["someothermachine"]
+
+
+def test_the_last_machine_to_lose_it_is_the_one_that_buries_it(tmp_path: Path):
+	build(tmp_path, "alpha", "beta")
+
+	settings = make_settings(scan__vanish_limit=100)
+
+	data: Projects = {}
+
+	_ = merge_scan(
+		data, [tmp_path], find_projects(str(tmp_path), settings), True, settings
+	)
+
+	beta = str(tmp_path / "beta")
+
+	shutil.rmtree(tmp_path / "beta")
+
+	result = merge_scan(
+		data, [tmp_path], find_projects(str(tmp_path), settings), True, settings
+	)
+
+	assert result.removed == [beta]
+	assert data[beta].get("archived")

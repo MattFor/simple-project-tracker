@@ -1,16 +1,10 @@
 import time
-
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from functools import wraps
 from typing import Any, ClassVar
-from dataclasses import dataclass, field
-from collections.abc import Callable, Mapping
 
-from tracker.ui.ansi import C
-from tracker.core.models import Projects
-from tracker.ui.ask import confirm as ask
 from tracker.config.settings import Settings
-from tracker.ui.render import note_display, status_colour
-
 from tracker.core.entries import (
 	ALL_SELECTORS,
 	Space,
@@ -19,6 +13,10 @@ from tracker.core.entries import (
 	status_counts,
 	temporary_ids,
 )
+from tracker.core.models import Projects
+from tracker.ui.ansi import C
+from tracker.ui.ask import confirm as ask
+from tracker.ui.render import note_display, status_colour
 
 Entries = dict[str, Any]
 

@@ -174,6 +174,10 @@ def defaults() -> dict[str, Any]:
 		"database": {
 			"file": "data.pkl",
 		},
+		"sync": {
+			"portable_paths": True,
+			"roots": {},
+		},
 		"logging": {
 			"always_verbose": False,
 		},
@@ -194,6 +198,7 @@ SECTION_TITLES = {
 	"todos": "Todos",
 	"output": "Output",
 	"database": "Database",
+	"sync": "Sync",
 	"logging": "Logging",
 	"daemon": "Daemon",
 }
@@ -211,6 +216,7 @@ CHOICES: dict[str, tuple[str, ...]] = {
 
 OPEN_TABLES = frozenset(
 	{
+		"sync.roots",
 		"display.status_colours",
 		"projects.auto_status_rules",
 		*(f"{scope}.display.status_colours" for scope in DISPLAY_SCOPES),

@@ -1,12 +1,11 @@
 import re
-
 from pathlib import Path
 
-from tracker.ui.ansi import C
-from tracker.core.todos import Todo, Todos
-from tracker.core.entries import status_of
 from tracker.config.settings import Settings
+from tracker.core.entries import status_of
 from tracker.core.models import Project, Projects
+from tracker.core.todos import Todo, Todos
+from tracker.ui.ansi import C
 
 # @tracker, @mattfor.com, @(two words)
 MENTION = re.compile(r"@(?:\(([^)]{1,80})\)|([\w.+-]{1,80}))")

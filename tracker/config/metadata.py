@@ -1,5 +1,5 @@
-from typing import Any
 from importlib import metadata as importlib_metadata
+from typing import Any
 
 from tracker.config import paths
 from tracker.util.files import load_toml

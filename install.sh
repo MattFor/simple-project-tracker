@@ -51,14 +51,17 @@ EOF
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --system|system)
+        --system | system)
             MODE="system"
             ;;
-        --user|user)
+        --user | user)
             MODE="user"
             ;;
         --prefix)
-            [[ $# -ge 2 ]] || { echo "[ERROR] --prefix needs a directory"; exit 1; }
+            [[ $# -ge 2 ]] || {
+                echo "[ERROR] --prefix needs a directory"
+                exit 1
+            }
             PREFIX="$2"
             MODE="system"
             shift
@@ -68,20 +71,23 @@ while [[ $# -gt 0 ]]; do
             MODE="system"
             ;;
         --destdir)
-            [[ $# -ge 2 ]] || { echo "[ERROR] --destdir needs a directory"; exit 1; }
+            [[ $# -ge 2 ]] || {
+                echo "[ERROR] --destdir needs a directory"
+                exit 1
+            }
             DESTDIR="$2"
             shift
             ;;
         --destdir=*)
             DESTDIR="${1#*=}"
             ;;
-        --daemon|-d|daemon|d)
+        --daemon | -d | daemon | d)
             INSTALL_DAEMON=true
             ;;
-        --uninstall|-u|uninstall|u)
+        --uninstall | -u | uninstall | u)
             UNINSTALL=true
             ;;
-        --help|-h|help|h)
+        --help | -h | help | h)
             print_help
             exit 0
             ;;
@@ -184,7 +190,7 @@ if [[ "${MODE}" == "system" ]]; then
     cp -r "${PROJECT_DIR}/tracker" "${LIB_DIR}/tracker"
     find "${LIB_DIR}" -name '__pycache__' -type d -prune -exec rm -rf {} +
 
-    cat > "${TRACKER_BIN}" <<EOF
+    cat >"${TRACKER_BIN}" <<EOF
 #!/bin/sh
 
 PYTHONPATH="${PREFIX}/lib/tracker\${PYTHONPATH:+:\${PYTHONPATH}}"
@@ -196,7 +202,7 @@ EOF
     mkdir -p "${LICENSE_DIR}"
     cp "${PROJECT_DIR}/LICENSE" "${LICENSE_DIR}/LICENSE"
 else
-    cat > "${TRACKER_BIN}" <<EOF
+    cat >"${TRACKER_BIN}" <<EOF
 #!/usr/bin/env bash
 
 set -e
@@ -226,7 +232,7 @@ cp "${PROJECT_DIR}/tracker/share/completion.fish" "${FISH_DIR}/tracker.fish"
 if "${INSTALL_DAEMON}"; then
     mkdir -p "$(dirname "${AUTOSTART_FILE}")"
 
-    cat > "${AUTOSTART_FILE}" <<EOF
+    cat >"${AUTOSTART_FILE}" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Tracker Daemon

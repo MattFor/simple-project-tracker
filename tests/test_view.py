@@ -1,17 +1,14 @@
 import os
-
 from pathlib import Path
 
 from tests.helpers import SAMPLE, make_projects, make_settings
-
+from tracker.core.models import Projects
 from tracker.core.selection import (
 	current_numbering,
 	pin_projects,
 	select_projects,
 	temporary_ids,
 )
-
-from tracker.core.models import Projects
 from tracker.core.view import load_numbering, save_numbering
 
 

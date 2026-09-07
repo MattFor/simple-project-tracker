@@ -1,12 +1,11 @@
 import os
 import shutil
 import subprocess
-
 from datetime import datetime
 
+from tracker.config.settings import Settings
 from tracker.core.models import Project
 from tracker.util.text import parse_time
-from tracker.config.settings import Settings
 
 SOURCES = ("zoxide", "frecency")
 

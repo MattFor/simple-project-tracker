@@ -1,18 +1,16 @@
 import os
-
-from pathlib import Path
-from fnmatch import fnmatch
-from datetime import datetime
 from collections.abc import Callable, Iterable
+from datetime import datetime
+from fnmatch import fnmatch
+from pathlib import Path
 
 from tracker.config.settings import Settings
-from tracker.core.identity import identity_of
+from tracker.core.identity import fingerprint_of, identity_of, mark, note_seen
 from tracker.core.labels import automatic_label
-
 from tracker.core.models import (
+	UNKNOWN_TIME,
 	Project,
 	Projects,
-	UNKNOWN_TIME,
 	get_id,
 	new_project,
 	restore,
@@ -197,8 +195,7 @@ def find_projects(
 		if known is not None:
 			known["last_touched"] = last_touched
 
-			if not known.get("identity"):
-				known["identity"] = identity_of(project_path)
+			_ = mark(project_path, known)
 
 			# Whatever was wrong is gone
 			if known.get("archived", False):
@@ -211,9 +208,13 @@ def find_projects(
 				last_touched=last_touched,
 				project_id=get_id(projects),
 				identity=identity_of(project_path),
+				fingerprint=fingerprint_of(project_path),
 			)
 
 			project["status"] = automatic_label(project, settings) or default_status
+
+			# It is on this machine
+			_ = note_seen(project)
 
 			projects[project_path] = project
 

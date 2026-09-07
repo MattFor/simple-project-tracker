@@ -1,9 +1,8 @@
 from typing import Any
 
 from tests.helpers import SAMPLE, make_projects, make_settings
-
-from tracker.ui.render import render_rows
 from tracker.core.selection import temporary_ids
+from tracker.ui.render import render_rows
 from tracker.util.text import human_size, relative_time, truncate, wrap
 
 

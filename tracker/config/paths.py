@@ -1,5 +1,4 @@
 import os
-
 from pathlib import Path
 
 _INSTALLED_PACKAGE = Path(__file__).resolve().parent.parent

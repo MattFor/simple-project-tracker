@@ -1,15 +1,13 @@
 import io
 import os
-
-from pathlib import Path
 from collections.abc import Callable
 from contextlib import redirect_stdout
+from pathlib import Path
 
 from tests.helpers import SAMPLE, make_projects, make_settings
-
 from tracker.cli.app import main
-from tracker.cli.entries import Context
 from tracker.cli.commands import command_list, command_show
+from tracker.cli.entries import Context
 
 
 def context(tmp_path: Path, **overrides: object) -> Context:
@@ -235,8 +233,8 @@ def test_editing_without_a_field_says_so(tmp_path: Path):
 
 
 def test_an_edited_note_shows_its_colours(tmp_path: Path):
-	from tracker.ui.ansi import C
 	from tracker.cli.commands import command_edit
+	from tracker.ui.ansi import C
 
 	holder = status_sample(tmp_path)
 

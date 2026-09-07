@@ -11,7 +11,9 @@ class Project(TypedDict):
 	note: NotRequired[str]
 
 	uses: NotRequired[int]
+	seen: NotRequired[list[str]]
 	identity: NotRequired[str]
+	fingerprint: NotRequired[str]
 	first_seen: NotRequired[str]
 	last_used: NotRequired[str]
 	deleted_at: NotRequired[str]
@@ -28,7 +30,7 @@ UNKNOWN_TIME = "unknown"
 
 DELETED_MARKER = "[DELETED]"
 
-TEXT_FIELDS = ("path", "status", "last_touched", "note", "identity")
+TEXT_FIELDS = ("path", "status", "last_touched", "note", "identity", "fingerprint")
 
 
 def get_id(projects: Projects) -> int:
@@ -52,6 +54,7 @@ def new_project(
 	project_id: int = 0,
 	first_seen: str = "",
 	identity: str = "",
+	fingerprint: str = "",
 ) -> Project:
 	project: Project = {
 		"id": project_id,
@@ -63,6 +66,9 @@ def new_project(
 
 	if identity:
 		project["identity"] = identity
+
+	if fingerprint:
+		project["fingerprint"] = fingerprint
 
 	if first_seen:
 		project["first_seen"] = first_seen
@@ -106,8 +112,18 @@ def normalise(projects: Any) -> Projects:
 		entry["last_touched"] = str(entry.get("last_touched") or UNKNOWN_TIME)
 		entry["note"] = str(entry.get("note") or "")
 
-		if "identity" in entry:
-			entry["identity"] = str(entry["identity"] or "")
+		for mark in ("identity", "fingerprint"):
+			if mark in entry:
+				entry[mark] = str(entry[mark] or "")
+
+		if "seen" in entry:
+			machines: Any = entry["seen"]
+
+			entry["seen"] = (
+				sorted({str(machine) for machine in machines if machine})
+				if isinstance(machines, (list, tuple, set))
+				else []
+			)
 
 		if "uses" in entry:
 			try:

@@ -254,6 +254,40 @@
 
       {GRAY}The database as it was is kept beside it, as {GREEN}data.pkl.undo{GRAY}.{RESET}
 
+   {YELLOW}doctor{RESET}, {GRAY}doc, health, healthcheck, hc{RESET}
+      Look the database over and report what is wrong with it.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}tracker doctor{RESET}
+         {GREEN}tracker doctor --verbose{RESET}   {GRAY}list every entry instead of the first few{RESET}
+
+      {GRAY}What it looks for:{RESET}
+
+         {GRAY}tracked twice{RESET}      {GRAY}one project under two entries, because the directory{RESET}
+                           {GRAY}moved and the new location was tracked as a new project{RESET}
+         {GRAY}somewhere else{RESET}     {GRAY}an entry whose project is on disk at a path the{RESET}
+                           {GRAY}database has never seen{RESET}
+         {GRAY}unmarked{RESET}           {GRAY}no record of which repository an entry is, so a move{RESET}
+                           {GRAY}cannot be followed later{RESET}
+         {GRAY}missing{RESET}            {GRAY}nothing at the path and nothing on disk matching it{RESET}
+         {GRAY}not shareable{RESET}      {GRAY}a path no other machine could place, see {GREEN}[sync.roots]{RESET}
+
+   {YELLOW}fix{RESET}, {GRAY}repair, migrate{RESET}
+      Everything {GREEN}doctor{RESET} found, put right. One undoable change.
+
+      {GRAY}Usage:{RESET}
+         {GREEN}tracker fix{RESET}
+         {GREEN}tracker fix -y{RESET}        {GRAY}without the questions{RESET}
+         {GREEN}tracker fix check{RESET}     {GRAY}the same as {GREEN}tracker doctor{RESET}
+
+      {GRAY}A project tracked twice keeps the older entry's ID, status and note and{RESET}
+      {GRAY}the living entry's path and timestamp. Two different notes are joined{RESET}
+      {GRAY}rather than one being dropped. Uses are added up and the earliest{RESET}
+      {GRAY}first_seen is the one kept.{RESET}
+
+      {GRAY}Archiving what is missing is asked about separately, and answering no{RESET}
+      {GRAY}still leaves the rest repaired. {GREEN}tracker undo{GRAY} takes all of it back.{RESET}
+
    {YELLOW}stats{RESET}, {GRAY}stat, summary{RESET}
       Show how many projects are tracked, how they are split by status, which ones were touched most and least recently, and which one you last used.
 
@@ -661,8 +695,47 @@
       {GREEN}TRACKER_DATA{RESET}       use a different database file
       {GREEN}TRACKER_TODOS{RESET}      use a different todo list file
       {GREEN}TRACKER_VIEW{RESET}       use a different file for the temporary numbering
+      {GREEN}TRACKER_ROOTS{RESET}      use a different file for this machine's roots
+      {GREEN}TRACKER_ROOT_<NAME>{RESET} define one root, beating both files
       {GREEN}TRACKER_SHARE{RESET}      use a different directory for the shipped files
       {GREEN}NO_COLOR{RESET}           disable colour
+
+{BOLD}Sync:{RESET}
+   {GRAY}The database can live in a Syncthing, Dropbox or git folder.{RESET}
+
+      {GREEN}tracker move db ~/sync-folder/data.pkl{RESET}
+
+   {GRAY}Every path is stored portable and expanded as it is read. Home{RESET}
+   {GRAY}needs no configuration and travels as {GREEN}~{GRAY}. Anything outside it is named:{RESET}
+
+      {GREEN}[sync.roots]{RESET}
+      {GREEN}media = "/archives/media"{RESET}
+
+   {GRAY}/archives/media/photos is then stored as {GREEN}@media/photos{GRAY} and expanded{RESET}
+   {GRAY}wherever {GREEN}media{GRAY} points on the machine reading it. A root a machine has{RESET}
+   {GRAY}never heard of is left alone rather than guessed at, so nothing is lost.{RESET}
+
+   {GRAY}Roots that belong to one machine alone go in a file that never syncs:{RESET}
+
+      {GREEN}~/.config/tracker/roots.toml{RESET}   {GRAY}the same table, this machine only{RESET}
+
+   {GRAY}Those beat {GREEN}[sync.roots]{GRAY}, and {GREEN}TRACKER_ROOT_MEDIA{GRAY} beats both.{RESET}
+
+   {GRAY}{GREEN}sync.portable_paths = false{GRAY} stores the plain absolute path again.{RESET}
+
+   {GRAY}A machine only reports a project missing if it ever had it, and only{RESET}
+   {GRAY}archives one when no machine sharing the database has it any more. A{RESET}
+   {GRAY}laptop that checked out six of your forty projects leaves the other{RESET}
+   {GRAY}thirty-four exactly as they are instead of burying them.{RESET}
+
+   {GRAY}A project carries two marks. Its {GREEN}identity{GRAY} is the inode of its .git,{RESET}
+   {GRAY}prefixed with the machine that read it, exact but meaningless elsewhere.{RESET}
+   {GRAY}Its {GREEN}fingerprint{GRAY} is the repository's root commit, the same on every{RESET}
+   {GRAY}machine that ever cloned it. Together they let a move, a rename and a{RESET}
+   {GRAY}differently laid out machine all be recognised as the same project.{RESET}
+
+      {GREEN}tracker doctor{RESET}   {GRAY}what is wrong with the database{RESET}
+      {GREEN}tracker fix{RESET}      {GRAY}put it right, undoable{RESET}
 
 {BOLD}Examples:{RESET}
    {GREEN}tracker{RESET}

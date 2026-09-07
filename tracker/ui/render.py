@@ -1,17 +1,15 @@
 import os
 import re
-import sys
 import shutil
-
-from typing import Any
-from pathlib import Path
+import sys
 from collections.abc import Callable, Iterable, Mapping
+from pathlib import Path
+from typing import Any
 
-from tracker.ui.ansi import C, markup
 from tracker.config.settings import Settings
 from tracker.core.inspect import detect_manifest
 from tracker.core.models import Project, Projects
-
+from tracker.ui.ansi import C, markup
 from tracker.util.text import (
 	abbreviate,
 	flatten,

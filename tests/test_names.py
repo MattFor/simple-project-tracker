@@ -1,8 +1,6 @@
 from tests.helpers import make_projects, make_settings
-
 from tracker.ui.render import project_name, render_rows
 from tracker.util.text import abbreviate, shorten, truncate, visible_length, words
-
 
 # Might as well use one of my own lol
 LONG = "von-neumann-machine-simulator"

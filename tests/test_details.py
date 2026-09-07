@@ -1,13 +1,11 @@
 import io
-
-from pathlib import Path
 from contextlib import redirect_stdout
+from pathlib import Path
 
 from tests.helpers import make_projects, make_settings
-
-from tracker.ui.details import print_details
 from tracker.config.metadata import Metadata
 from tracker.core.models import Project, archive
+from tracker.ui.details import print_details
 
 
 def shown(path: str, project: Project, **overrides: object) -> str:

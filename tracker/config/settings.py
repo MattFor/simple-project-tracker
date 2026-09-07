@@ -1,16 +1,15 @@
-import os
 import copy
-import tomllib
+import os
 import subprocess
-
-from typing import Any
-from pathlib import Path
+import tomllib
 from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
 
 from tracker.config import paths
+from tracker.config.defaults import CHOICES, DISPLAY_SCOPES, OPEN_TABLES, defaults
 from tracker.util.files import read_toml
 from tracker.util.unknown import Unknown
-from tracker.config.defaults import CHOICES, DISPLAY_SCOPES, OPEN_TABLES, defaults
 
 
 def _merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:

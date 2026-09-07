@@ -1,17 +1,16 @@
 import os
 import shutil
-
-from pathlib import Path
-from dataclasses import dataclass
 from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
 
-from tracker.ui.ansi import C
-from tracker.config import paths
-from tracker.ui.help import print_topic
 from tracker.cli.entries import Context
+from tracker.config import paths
+from tracker.config.metadata import project as metadata
 from tracker.config.settings import Settings
 from tracker.config.writer import write_setting
-from tracker.config.metadata import project as metadata
+from tracker.ui.ansi import C
+from tracker.ui.help import print_topic
 
 
 @dataclass(frozen=True)

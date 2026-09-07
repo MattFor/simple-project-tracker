@@ -1,12 +1,8 @@
-from typing import Any
-from pathlib import Path
 from collections.abc import Iterable
+from pathlib import Path
+from typing import Any
 
-from tracker.ui import mentions
-from tracker.ui.ansi import C, markup
 from tracker.config.settings import Settings
-from tracker.util.text import parse_time, relative_time, wrap
-
 from tracker.core.todos import (
 	Todo,
 	Todos,
@@ -20,7 +16,8 @@ from tracker.core.todos import (
 	status_counts,
 	status_of,
 )
-
+from tracker.ui import mentions
+from tracker.ui.ansi import C, markup
 from tracker.ui.render import (
 	NOTE_HEADER,
 	Segment,
@@ -35,6 +32,7 @@ from tracker.ui.render import (
 	terminal_width,
 	timestamp,
 )
+from tracker.util.text import parse_time, relative_time, wrap
 
 SCOPE = "todos"
 

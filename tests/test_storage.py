@@ -1,13 +1,11 @@
 import os
-
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 from tests.helpers import SAMPLE, make_projects, make_settings
-
-from tracker.util.files import load_pkl, save_pkl
-from tracker.core.storage import load_data, save_data
 from tracker.core.discovery import find_projects, get_last_touched_date
+from tracker.core.storage import load_data, save_data
+from tracker.util.files import load_pkl, save_pkl
 
 
 def with_data_file(path: Path):

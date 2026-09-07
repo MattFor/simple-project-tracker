@@ -1,14 +1,13 @@
+import json
 import os
 import re
-import json
 import shutil
 import subprocess
-
-from pathlib import Path
-from datetime import datetime
-from functools import lru_cache
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 
 from tracker.util.files import load_toml
 
@@ -38,7 +37,7 @@ class GitInfo:
 		return not (self.modified or self.untracked or self.staged)
 
 
-def _git(path: str, *arguments: str) -> str | None:
+def git_output(path: str, *arguments: str) -> str | None:
 	try:
 		result = subprocess.run(
 			["git", "--no-optional-locks", "-C", path, *arguments],
@@ -61,25 +60,25 @@ def git_info(path: str) -> GitInfo | None:
 	if not shutil.which("git") or not os.path.isdir(path):
 		return None
 
-	if _git(path, "rev-parse", "--is-inside-work-tree") != "true":
+	if git_output(path, "rev-parse", "--is-inside-work-tree") != "true":
 		return None
 
 	info = GitInfo()
 
-	branch = _git(path, "branch", "--show-current") or ""
+	branch = git_output(path, "branch", "--show-current") or ""
 
 	if not branch:
-		branch = _git(path, "rev-parse", "--abbrev-ref", "HEAD") or ""
+		branch = git_output(path, "rev-parse", "--abbrev-ref", "HEAD") or ""
 
 	if branch == "HEAD":
 		info.detached = True
-		branch = _git(path, "rev-parse", "--short", "HEAD") or "detached"
+		branch = git_output(path, "rev-parse", "--short", "HEAD") or "detached"
 
 	info.branch = branch
 
-	info.remote = _git(path, "remote", "get-url", "origin") or ""
+	info.remote = git_output(path, "remote", "get-url", "origin") or ""
 
-	last = _git(path, "log", "-1", "--format=%h%x1f%s%x1f%cI")
+	last = git_output(path, "log", "-1", "--format=%h%x1f%s%x1f%cI")
 
 	if last:
 		parts = last.split("\x1f")
@@ -92,12 +91,12 @@ def git_info(path: str) -> GitInfo | None:
 			except ValueError:
 				info.committed = None
 
-	count = _git(path, "rev-list", "--count", "HEAD")
+	count = git_output(path, "rev-list", "--count", "HEAD")
 
 	if count and count.isdigit():
 		info.commits = int(count)
 
-	status = _git(path, "status", "--porcelain")
+	status = git_output(path, "status", "--porcelain")
 
 	if status:
 		for line in status.splitlines():

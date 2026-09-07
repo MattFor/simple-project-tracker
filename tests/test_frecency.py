@@ -3,10 +3,9 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 
 from tests.helpers import make_projects, make_settings
-
 from tracker.core import frecency as scoring
-from tracker.core.selection import select_projects
 from tracker.core.frecency import best_match, decay, frecency, score_of
+from tracker.core.selection import select_projects
 
 NOW = datetime(2026, 8, 24, 12, 0, 0)
 

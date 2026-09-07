@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 
+import inspect
 import io
 import os
 import sys
-import inspect
 import tempfile
 import traceback
-
-from typing import Any
-from pathlib import Path
 from collections.abc import Callable
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
 

@@ -1,5 +1,5 @@
-from tracker.config.settings import Settings
 from tracker.config.keys import known_keys, resolve_key
+from tracker.config.settings import Settings
 
 
 def resolved(query: str) -> str | None:

@@ -1,13 +1,12 @@
 import os
-
 from pathlib import Path
 
 from tests.helpers import SAMPLE, make_projects, make_settings
-
 from tracker.core.models import Projects, get_id, new_project, normalise
 from tracker.core.selection import (
 	filter_projects,
 	parse_filter,
+	pin_projects,
 	regex_projects,
 	resolve_selection,
 	search_projects,
@@ -459,3 +458,61 @@ def test_a_colon_selector_never_reads_as_a_status():
 
 	assert not selected
 	assert unmatched == [":99"]
+
+
+#
+# A bare number under a number_preference
+#
+
+
+def numbered(*entries: tuple[str, int]) -> Projects:
+	return {
+		path: new_project(path, status="dev", project_id=number)
+		for path, number in entries
+	}
+
+
+def test_a_bare_number_still_finds_an_id_the_view_cannot_number():
+	projects = numbered(("/code/alpha", 3), ("/code/beta", 61))
+	settings = make_settings(projects__number_preference="tid")
+
+	_ = pin_projects(projects, settings)
+
+	assert list(select_projects(projects, settings, ["3"])) == ["/code/alpha"]
+
+
+def test_a_bare_number_still_finds_a_tid_no_project_has_as_an_id():
+	projects = numbered(("/code/alpha", 40), ("/code/beta", 41))
+	settings = make_settings(
+		projects__number_preference="id",
+		sorting__by="name",
+		sorting__direction="ascending",
+	)
+
+	_ = pin_projects(projects, settings)
+
+	assert list(select_projects(projects, settings, ["2"])) == ["/code/beta"]
+
+
+def test_the_preference_still_settles_a_number_that_is_both():
+	projects = numbered(("/code/alpha", 1), ("/code/beta", 2))
+	settings = make_settings(sorting__by="name", sorting__direction="descending")
+
+	_ = pin_projects(projects, settings)
+
+	wants_tid = settings.override("projects.number_preference", "tid")
+	wants_id = settings.override("projects.number_preference", "id")
+
+	assert list(select_projects(projects, wants_tid, ["1"])) == ["/code/beta"]
+	assert list(select_projects(projects, wants_id, ["1"])) == ["/code/alpha"]
+
+
+def test_a_named_selector_is_never_guessed_at():
+	projects = numbered(("/code/alpha", 3), ("/code/beta", 61))
+	settings = make_settings(projects__number_preference="tid")
+
+	_ = pin_projects(projects, settings)
+
+	assert select_projects(projects, settings, ["i:99"], quiet=True) == {}
+	assert select_projects(projects, settings, ["t:3"], quiet=True) == {}
+	assert list(select_projects(projects, settings, ["i:3"])) == ["/code/alpha"]

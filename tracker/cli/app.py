@@ -1,14 +1,13 @@
 import sys
-
 from typing import Any
 
-from tracker.ui.ansi import C
-from tracker.ui import ansi, mentions
-from tracker.core.storage import load_data
-from tracker.config.settings import Settings
-from tracker.ui.render import print_projects
-from tracker.cli import commands, relocate, todo
+from tracker.cli import commands, doctor, relocate, todo
 from tracker.cli.entries import Context, Handler
+from tracker.config.settings import Settings
+from tracker.core.storage import load_data
+from tracker.ui import ansi, mentions
+from tracker.ui.ansi import C
+from tracker.ui.render import print_projects
 
 COMMANDS: dict[str, str] = {
 	"version": "version",
@@ -71,6 +70,14 @@ COMMANDS: dict[str, str] = {
 	"undo": "undo",
 	"u": "undo",
 	"revert": "undo",
+	"doctor": "doctor",
+	"doc": "doctor",
+	"health": "doctor",
+	"healthcheck": "doctor",
+	"hc": "doctor",
+	"fix": "fix",
+	"repair": "fix",
+	"migrate": "fix",
 }
 
 HANDLERS: dict[str, Handler] = {
@@ -94,6 +101,8 @@ HANDLERS: dict[str, Handler] = {
 	"completion": commands.command_completion,
 	"todo": todo.command_todo,
 	"move": relocate.command_move,
+	"doctor": doctor.command_doctor,
+	"fix": doctor.command_fix,
 }
 
 GREEDY = frozenset({"add", "completion", "edit", "move", "note", "status", "todo"})
@@ -104,6 +113,8 @@ SUBJECT = frozenset(
 
 ACTIONS: dict[str, frozenset[str]] = {
 	"todo": frozenset(todo.ALIASES),
+	"fix": frozenset(doctor.NAMES),
+	"doctor": frozenset(doctor.NAMES),
 	"move": frozenset(relocate.NAMES),
 	"edit": frozenset(commands.FIELD_ALIASES),
 	"forget": frozenset({"list", "l", "show", "clear", "c", "reset", "allow"}),

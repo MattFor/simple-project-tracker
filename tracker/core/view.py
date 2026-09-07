@@ -1,10 +1,11 @@
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 from tracker.config import paths
+from tracker.config.settings import Settings
+from tracker.config.settings import settings as default_settings
 from tracker.core.storage import data_path
 from tracker.util.files import load_json, save_json
-from tracker.config.settings import Settings, settings as default_settings
 
 Numbering = dict[str, int]
 

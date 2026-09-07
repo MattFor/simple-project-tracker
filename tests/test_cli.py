@@ -174,8 +174,8 @@ def test_help_takes_a_topic_that_is_not_a_command():
 
 
 def test_usage_is_only_recorded_when_it_is_turned_on():
-	from tracker.cli.entries import Context
 	from tests.helpers import SAMPLE, make_projects, make_settings
+	from tracker.cli.entries import Context
 
 	for enabled in (True, False):
 		projects = make_projects(*SAMPLE)
@@ -205,8 +205,8 @@ def test_nothing_selected_is_never_stamped():
 def test_the_decorator_saves_what_a_command_used(tmp_path: Path):
 	import os
 
-	from tracker.cli.entries import Context, marks_used
 	from tests.helpers import SAMPLE, make_projects, make_settings
+	from tracker.cli.entries import Context, marks_used
 
 	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
 

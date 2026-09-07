@@ -1,11 +1,12 @@
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, TypeVar
-from collections.abc import Callable, Mapping
 
-from tracker.util.files import load_pkl, save_pkl
+from tracker.config.settings import Settings
+from tracker.config.settings import settings as default_settings
 from tracker.core.models import Projects, normalise
-from tracker.core.storage import data_path, load_data, save_data
-from tracker.config.settings import Settings, settings as default_settings
+from tracker.core.storage import data_path, load_data, local, save_data, shared
+from tracker.util.files import load_pkl, save_pkl
 
 T = TypeVar("T")
 
@@ -55,8 +56,9 @@ def swap(
 	current: T,
 	prepare: Callable[[Any], T],
 	save: Callable[[T], bool],
+	store: Callable[[T], Any] | None = None,
 ) -> tuple[T, T] | None:
-	kept = take_back(path, current)
+	kept = take_back(path, store(current) if store else current)
 
 	if kept is None:
 		return None
@@ -75,8 +77,9 @@ def restore(settings: Settings | None = None) -> tuple[Projects, Projects] | Non
 	return swap(
 		data_path(settings),
 		load_data(settings),
-		normalise,
+		lambda kept: local(normalise(kept), settings),
 		lambda data: save_data(data, settings),
+		lambda data: shared(data, settings),
 	)
 
 

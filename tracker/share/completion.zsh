@@ -1,13 +1,13 @@
 _tracker() {
-	local -a candidates
+    local -a candidates
 
-	candidates=("${(@f)$("${words[1]}" completion words "${words[CURRENT]}" 2>/dev/null)}")
+    candidates=("${(@f)$("${words[1]}" completion words "${words[CURRENT]}" 2>/dev/null)}")
 
-	if (( ${#candidates} )); then
-		compadd -- "${candidates[@]}"
-	fi
+    if ((${#candidates})); then
+        compadd -- "${candidates[@]}"
+    fi
 
-	_files -/
+    _files -/
 }
 
 compdef _tracker tracker t

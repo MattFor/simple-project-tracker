@@ -1,5 +1,5 @@
-from typing import Any
 from collections.abc import Iterator
+from typing import Any
 
 from tracker.config.defaults import DISPLAY_SCOPES, OPEN_TABLES, defaults
 

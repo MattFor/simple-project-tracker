@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from tests.helpers import Patcher
-
 from tracker.config import paths
 
 

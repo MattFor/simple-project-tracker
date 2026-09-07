@@ -1,12 +1,10 @@
 import tomllib
-
 from pathlib import Path
 
 from tests.helpers import make_settings
-
 from tracker.config.defaults import defaults
-from tracker.config.writer import serialise, write_setting
 from tracker.config.settings import Settings, coerce, parse_setting_value
+from tracker.config.writer import serialise, write_setting
 
 
 def test_partial_configuration_falls_back_to_defaults():

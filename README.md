@@ -20,6 +20,7 @@ TID | ID | NAME                          | STATUS  | LAST TOUCHED | NOTE
 - [Commands](#commands)
 - [Todos](#todos)
 - [Selecting projects](#selecting-projects)
+- [Several machines](#several-machines)
 - [Configuration](#configuration)
 - [Development](#development)
 - [License](#license)
@@ -37,25 +38,27 @@ Python 3.11+. Then `t init ~/(your project directory)` to fill the database.
 
 ## Commands
 
-| Command      | Aliases           | What it does                                                         |
-|--------------|-------------------|----------------------------------------------------------------------|
-| `list`       | `l`, `ls`         | List projects, with search, regex, filters and setting overrides     |
-| `check`      | `c`, `cc`, `info` | Everything about a project: git state, size, language, version, note |
-| `add`        | `a`               | Track a project, or scan a directory and track what is inside        |
-| `remove`     | `rm`, `r`, `del`  | Stop tracking projects (files untouched)                             |
-| `forget`     | `ignore`          | Stop tracking and keep scans from finding it again                   |
-| `edit`       | `e`               | Change a `status` or a `note`                                        |
-| `note`       | `n`, `sn`         | Set a note without naming the field                                  |
-| `status`     | `st`, `ss`        | List statuses, set one, or move every project from one to another    |
-| `todo`       | `td`, `todos`     | A todo list of its own: add, edit, status, note, done, clear         |
-| `init`       | `i`, `scan`       | Scan a directory and merge the result into the database              |
-| `path`       | `p`, `where`      | Print a project's path, e.g. `cd "$(t path tracker)"`                |
-| `undo`       | `u`, `revert`     | Take back the last change, undo again to put it back                 |
-| `move`       | `mv`              | Move the settings, database or todo list, and point tracker at it    |
-| `stats`      | `summary`         | Totals, a breakdown by status, most and least recently touched       |
-| `settings`   | `s`, `config`     | Show, edit, get or set the configuration                             |
-| `completion` |                   | Print a shell completion script for bash, zsh or fish                |
-| `daemon`     | `d`, `bg`         | `start`, `stop`, `restart`, `status`, `log`, `run`                   |
+| Command      | Aliases             | What it does                                                         |
+| ------------ | ------------------- | -------------------------------------------------------------------- |
+| `list`       | `l`, `ls`           | List projects, with search, regex, filters and setting overrides     |
+| `check`      | `c`, `cc`, `info`   | Everything about a project: git state, size, language, version, note |
+| `add`        | `a`                 | Track a project, or scan a directory and track what is inside        |
+| `remove`     | `rm`, `r`, `del`    | Stop tracking projects (files untouched)                             |
+| `forget`     | `ignore`            | Stop tracking and keep scans from finding it again                   |
+| `edit`       | `e`                 | Change a `status` or a `note`                                        |
+| `note`       | `n`, `sn`           | Set a note without naming the field                                  |
+| `status`     | `st`, `ss`          | List statuses, set one, or move every project from one to another    |
+| `todo`       | `td`, `todos`       | A todo list of its own: add, edit, status, note, done, clear         |
+| `init`       | `i`, `scan`         | Scan a directory and merge the result into the database              |
+| `path`       | `p`, `where`        | Print a project's path, e.g. `cd "$(t path tracker)"`                |
+| `undo`       | `u`, `revert`       | Take back the last change, undo again to put it back                 |
+| `move`       | `mv`                | Move the settings, database or todo list, and point tracker at it    |
+| `stats`      | `summary`           | Totals, a breakdown by status, most and least recently touched       |
+| `settings`   | `s`, `config`       | Show, edit, get or set the configuration                             |
+| `doctor`     | `hc`, `health`      | Report what is wrong with the database                               |
+| `fix`        | `repair`, `migrate` | Repair everything `doctor` found                                     |
+| `completion` |                     | Print a shell completion script for bash, zsh or fish                |
+| `daemon`     | `d`, `bg`           | `start`, `stop`, `restart`, `status`, `log`, `run`                   |
 
 The project goes before or after the command, whichever reads better, and a command fuses
 with its own action:
@@ -111,7 +114,7 @@ the projects it names.
 ## Selecting projects
 
 | Selector    | Means                                                     |
-|-------------|-----------------------------------------------------------|
+| ----------- | --------------------------------------------------------- |
 | `12`        | ID or TID 12                                              |
 | `i:12`      | The permanent ID, `id:` and `#12` too                     |
 | `t:12`      | The temporary ID, `tid:`, `@12` and `:12` too             |
@@ -124,6 +127,39 @@ A temporary ID is the index of the latest output.
 
 When a partial name matches several projects, it's settled by
 `projects.conflict_resolution_preference`.
+
+## Several machines
+
+The database can live in a Syncthing, Dropbox or git folder.
+
+```sh
+t mv db ~/sync-folder/data.pkl   # put the database where it syncs
+t doctor                         # what is wrong with it
+t fix                            # put that right, undoable
+```
+
+```toml
+[sync.roots]
+media = "/archives/media"        # stored as @media/photos, wherever media points
+```
+
+Roots belonging to one machine alone go in `~/.config/tracker/roots.toml`, which holds the
+same table and stays out of whatever syncs the settings.
+
+```
+$ t doctor
+
+Tracked twice (2)
+  one project under two entries, the older one pointing at a path that is gone
+
+  von-neumann-machine-simulator #3 -> #61, by fingerprint
+      gone  ~/Programming/Development/Rust/von-neumann-machine-simulator
+      here  ~/programming/development/rust/von-neumann-machine-simulator
+```
+
+`fix` keeps the older entry's ID, status and note and the living entry's path and
+timestamp. Two different notes are joined rather than one being dropped, and `t undo`
+takes the whole repair back.
 
 ## Configuration
 
@@ -139,7 +175,7 @@ or by its initials, with the section shortening the same way: `display.list_limi
 `list_limit`, `list_lim`, `l_l`, `ll`, `d.ll`. Ambiguities are reported.
 
 | Setting                             | What it does                                                |
-|-------------------------------------|-------------------------------------------------------------|
+| ----------------------------------- | ----------------------------------------------------------- |
 | `display.filter`                    | Filters every listing but `all`, e.g. `["-s:archive"]`      |
 | `display.columns`, `display.format` | Which columns, or a row layout of your own                  |
 | `display.relative_times`            | `2 days ago` instead of a timestamp                         |
@@ -149,6 +185,7 @@ or by its initials, with the section shortening the same way: `display.list_limi
 | `projects.auto_status`              | Status from how long ago a project was touched              |
 | `scan.detect_moves`                 | A moved project keeps its entry instead of looking deleted  |
 | `daemon.paths`, `daemon.interval`   | What the background scanner watches, and how often          |
+| `sync.portable_paths`, `sync.roots` | Paths a database shared between machines can be read with   |
 | `todos.new_status`, `.done_status`  | What a new todo is called, and what `done` and `clear` use  |
 | `todos.sort`, `todos.newest_first`  | How the todo list is ordered                                |
 | `[todos.display]`                   | Display settings the todo list alone uses                   |
@@ -176,5 +213,5 @@ I wanted to get this project out asap as I really needed it :P
 
 ## License
 
-MIT [LICENSE](LICENSE).  
+MIT [LICENSE](LICENSE).
 By MattFor.

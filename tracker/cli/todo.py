@@ -1,11 +1,5 @@
 from typing import Any, final
 
-from tracker.ui.ansi import C
-from tracker.ui import mentions
-from tracker.ui.help import print_topic
-from tracker.core.entries import parse_filter
-from tracker.config.metadata import project as metadata
-
 from tracker.cli.entries import (
 	Context,
 	Entries,
@@ -14,7 +8,8 @@ from tracker.cli.entries import (
 	plural,
 	report_undo,
 )
-
+from tracker.config.metadata import project as metadata
+from tracker.core.entries import parse_filter
 from tracker.core.todos import (
 	ALL_SELECTORS,
 	FIELD_ALIASES,
@@ -34,7 +29,9 @@ from tracker.core.todos import (
 	status_of,
 	status_values,
 )
-
+from tracker.ui import mentions
+from tracker.ui.ansi import C
+from tracker.ui.help import print_topic
 from tracker.ui.todos import (
 	note_text,
 	print_todo,

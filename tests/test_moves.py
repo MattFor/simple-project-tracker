@@ -1,15 +1,13 @@
 from pathlib import Path
 
 from tests.helpers import make_settings
-
-from tracker.config.settings import Settings
-
-from tracker.cli.entries import Context
-from tracker.core.daemon import merge_scan
 from tracker.cli.commands import scan_into
+from tracker.cli.entries import Context
+from tracker.config.settings import Settings
+from tracker.core.daemon import merge_scan
 from tracker.core.discovery import find_projects
-from tracker.core.models import Projects, new_project
 from tracker.core.identity import apply_moves, identity_of
+from tracker.core.models import Projects, new_project
 
 
 def build(root: Path, *names: str) -> None:

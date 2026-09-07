@@ -1,12 +1,12 @@
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
+from tracker.config.settings import Settings
+from tracker.core.inspect import detect_manifest, disk_usage, git_info
+from tracker.core.models import Project
 from tracker.ui import mentions
 from tracker.ui.ansi import C, markup
-from tracker.core.models import Project
-from tracker.config.settings import Settings
 from tracker.ui.render import short_times, status_colour
-from tracker.core.inspect import detect_manifest, disk_usage, git_info
 from tracker.util.text import human_size, parse_time, relative_time, wrap
 
 LABEL_WIDTH = 16

@@ -1,9 +1,8 @@
 import re
 
-from tracker.ui.ansi import C
-
 from tracker.config import paths
 from tracker.config.metadata import Metadata
+from tracker.ui.ansi import C
 
 # "   {YELLOW}list{RESET}, {GRAY}l, ls, --list{RESET}"
 _COMMAND = re.compile(r"^ {3}\{YELLOW\}(\w+)\{RESET\}")
@@ -52,6 +51,13 @@ TOPIC_ALIASES = {
 	"status": "statuses",
 	"state": "statuses",
 	"states": "statuses",
+	"roots": "sync",
+	"root": "sync",
+	"shared": "sync",
+	"sharing": "sync",
+	"machines": "sync",
+	"portable": "sync",
+	"syncthing": "sync",
 }
 
 Block = tuple[str, str, list[str]]

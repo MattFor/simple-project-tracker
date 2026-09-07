@@ -1,49 +1,9 @@
 import os
 import sys
 import time
-
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, final
-from dataclasses import dataclass, field
-
-from tracker.core import daemon
-from tracker.config import paths
-from tracker.config.writer import write_setting
-from tracker.config.keys import known_keys, resolve_key
-from tracker.config.metadata import project as metadata
-from tracker.config.defaults import SECTION_TITLES, defaults
-from tracker.config.settings import (
-	Settings,
-	parse_setting_value,
-	scope_of,
-	shared_key,
-)
-
-from tracker.core.labels import apply_labels, automatic_label
-from tracker.core.identity import apply_moves, identity_of, vanished
-from tracker.core.discovery import find_projects, is_project, touched_at
-
-from tracker.ui.ansi import C
-from tracker.core.storage import data_path
-from tracker.ui.details import print_details
-from tracker.ui.help import print_help, print_topic
-from tracker.util.text import parse_time, relative_time
-from tracker.core.models import Projects, get_id, new_project, set_field
-
-from tracker.ui.render import (
-	format_project,
-	print_projects,
-	render_rows,
-	short_times,
-	status_colour,
-)
-
-from tracker.core.selection import (
-	PROJECTS,
-	parse_filter,
-	sort_projects,
-	status_counts,
-)
 
 from tracker.cli.entries import (
 	Context,
@@ -54,6 +14,40 @@ from tracker.cli.entries import (
 	plural,
 	report_undo,
 )
+from tracker.config import paths
+from tracker.config.defaults import SECTION_TITLES, defaults
+from tracker.config.keys import known_keys, resolve_key
+from tracker.config.metadata import project as metadata
+from tracker.config.settings import (
+	Settings,
+	parse_setting_value,
+	scope_of,
+	shared_key,
+)
+from tracker.config.writer import write_setting
+from tracker.core import daemon
+from tracker.core.discovery import find_projects, is_project, touched_at
+from tracker.core.identity import apply_moves, identity_of, vanished
+from tracker.core.labels import apply_labels, automatic_label
+from tracker.core.models import Projects, get_id, new_project, set_field
+from tracker.core.selection import (
+	PROJECTS,
+	parse_filter,
+	sort_projects,
+	status_counts,
+)
+from tracker.core.storage import data_path
+from tracker.ui.ansi import C
+from tracker.ui.details import print_details
+from tracker.ui.help import print_help, print_topic
+from tracker.ui.render import (
+	format_project,
+	print_projects,
+	render_rows,
+	short_times,
+	status_colour,
+)
+from tracker.util.text import parse_time, relative_time
 
 
 def suggest_command(args: list[str]) -> None:

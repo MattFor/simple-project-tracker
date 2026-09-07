@@ -1,10 +1,9 @@
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from tests.helpers import make_projects, make_settings
-
-from tracker.core.labels import apply_labels, label_of, rules
 from tracker.core.discovery import find_projects, get_last_touched_date
+from tracker.core.labels import apply_labels, label_of, rules
 
 NOW = datetime(2026, 8, 23, 12, 0, 0)
 

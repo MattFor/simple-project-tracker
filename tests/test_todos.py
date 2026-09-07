@@ -1,15 +1,12 @@
 import io
 import os
-
-from pathlib import Path
 from contextlib import redirect_stdout
+from pathlib import Path
 
 from tests.helpers import make_settings
-
 from tracker.cli.app import fuse, split
 from tracker.cli.entries import Context
 from tracker.cli.todo import command_todo
-
 from tracker.core.todos import (
 	load_todos,
 	new_todo,
@@ -367,7 +364,6 @@ def test_a_temporary_id_points_at_the_last_listing(tmp_path: Path):
 
 def test_the_two_numberings_do_not_disturb_each_other(tmp_path: Path):
 	from tests.helpers import SAMPLE, make_projects
-
 	from tracker.core.selection import temporary_ids as project_ids
 	from tracker.core.todos import temporary_ids as todo_ids
 
@@ -578,9 +574,8 @@ def test_a_bare_help_reaches_the_todo_section():
 
 
 def mentioned(text: str, **overrides: object) -> str:
-	from tracker.ui import mentions
-
 	from tests.helpers import SAMPLE, make_projects
+	from tracker.ui import mentions
 
 	mentions.use(make_projects(*SAMPLE))
 
@@ -623,9 +618,8 @@ def test_a_mention_wears_the_status_colour(tmp_path: Path):
 
 
 def test_a_todo_note_shows_what_it_mentions(tmp_path: Path):
-	from tracker.ui import mentions
-
 	from tests.helpers import SAMPLE, make_projects
+	from tracker.ui import mentions
 
 	holder = context(tmp_path)
 	holder.data = make_projects(*SAMPLE)
@@ -647,10 +641,9 @@ def test_a_todo_note_shows_what_it_mentions(tmp_path: Path):
 
 def test_todos_and_projects_are_selected_the_same_way(tmp_path: Path):
 	from tests.helpers import SAMPLE, make_projects
-
-	from tracker.core.todos import TODOS
 	from tracker.core.entries import resolve_selection as resolve
 	from tracker.core.selection import PROJECTS
+	from tracker.core.todos import TODOS
 
 	isolate(tmp_path)
 
@@ -695,10 +688,9 @@ def capture(function: object, *args: object) -> str:
 
 
 def test_a_project_check_names_the_todos_about_it(tmp_path: Path):
-	from tracker.ui import mentions
-	from tracker.cli.commands import command_check
-
 	from tests.helpers import SAMPLE, make_projects
+	from tracker.cli.commands import command_check
+	from tracker.ui import mentions
 
 	holder = context(tmp_path)
 	holder.data = make_projects(*SAMPLE)
@@ -719,9 +711,8 @@ def test_a_project_check_names_the_todos_about_it(tmp_path: Path):
 
 
 def test_a_todo_check_names_the_projects_it_is_about(tmp_path: Path):
-	from tracker.ui import mentions
-
 	from tests.helpers import SAMPLE, make_projects
+	from tracker.ui import mentions
 
 	holder = context(tmp_path)
 	holder.data = make_projects(*SAMPLE)
@@ -740,9 +731,8 @@ def test_a_todo_check_names_the_projects_it_is_about(tmp_path: Path):
 
 
 def test_a_todo_that_names_nothing_keeps_the_check_quiet(tmp_path: Path):
-	from tracker.ui import mentions
-
 	from tests.helpers import SAMPLE, make_projects
+	from tracker.ui import mentions
 
 	holder = context(tmp_path)
 	holder.data = make_projects(*SAMPLE)
@@ -779,8 +769,8 @@ def test_a_status_keeps_the_case_it_was_given(tmp_path: Path):
 
 
 def test_both_kinds_answer_the_same_commands():
-	from tracker.cli.todo import TODO
 	from tracker.cli.commands import PROJECT
+	from tracker.cli.todo import TODO
 
 	shared = ("check", "show", "remove", "edit", "field", "statuses")
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.0]
+
+### Added
+
+- `doctor`, `doc`, `health`, `healthcheck`, `hc`, a report on what is wrong with the
+  database, and `fix`, `repair`, `migrate`, which repairs it as one undoable change.
+- `[sync]`, portable paths. Store the database in something like Git, Syncthing, etc.
+- A project now records which machines have it on disk and carries a `fingerprint`,
+  the repository's root commit, which is the same on every machine that ever cloned it.
+
 ## [1.1.0]
 
 ### Added

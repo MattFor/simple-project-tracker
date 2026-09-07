@@ -1,9 +1,8 @@
 # pyright: reportUnreachable=false
 
 import sys
-
-from typing import TypeVar
 from collections.abc import Callable
+from typing import TypeVar
 
 __all__ = ["override"]
 

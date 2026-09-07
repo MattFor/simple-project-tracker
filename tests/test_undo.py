@@ -1,14 +1,11 @@
 import io
 import os
-
-from pathlib import Path
 from contextlib import redirect_stdout
+from pathlib import Path
 
 from tests.helpers import SAMPLE, make_projects, make_settings
-
 from tracker.cli.commands import command_undo
 from tracker.cli.entries import Context, marks_used
-
 from tracker.core.storage import load_data, save_data
 from tracker.core.undo import backup_path, differences, restore
 

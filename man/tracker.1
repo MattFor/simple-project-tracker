@@ -191,6 +191,27 @@ wants when the folder is already syncing. A running daemon follows on its next
 scan.
 
 .TP
+.BR doctor ", " doc ", " health ", " healthcheck ", " hc
+Look the database over and report what is wrong with it. With
+.B \-\-verbose
+every entry is listed rather than the first few of each kind.
+
+.TP
+.BR fix ", " repair ", " migrate
+Repair everything
+.B doctor
+found, as one undoable change. A project tracked twice keeps the older entry's
+ID, status and note together with the living entry's path and timestamp; two
+different notes are joined rather than one being dropped; uses are added up and
+the earliest
+.B first_seen
+is kept. Archiving what is missing is asked about separately, and answering no
+still leaves the rest repaired.
+.B tracker fix check
+only looks, the same as
+.BR doctor .
+
+.TP
 .BR stats ", " summary
 Show totals, a breakdown by status, the most and least recently touched
 projects and the one last used with tracker.
@@ -653,6 +674,58 @@ tracker settings set name_max 20
 tracker settings get by crp
 .fi
 
+.SH SYNC
+A database kept in a Syncthing, Dropbox or git folder is read by machines that
+keep their projects somewhere else. Every path is therefore stored in a portable
+form and expanded to a local one as it is read.
+.PP
+Home needs no configuration and travels as
+.IR ~ .
+Anything outside it is named in
+.BR [sync.roots] ,
+and the same name is given a different value on each machine:
+.PP
+.nf
+[sync.roots]
+media = "/archives/media"
+.fi
+.PP
+.I /archives/media/photos
+is then stored as
+.I @media/photos
+and expanded wherever
+.B media
+points on the machine reading it. A root the reading machine has never heard of
+is left alone rather than guessed at, so nothing is lost.
+.PP
+Roots that belong to one machine alone go in
+.IR ~/.config/tracker/roots.toml ,
+which holds the same table and is meant to stay out of whatever syncs the
+settings. Those win over
+.BR [sync.roots] ,
+and
+.BI TRACKER_ROOT_ NAME
+wins over both.
+.PP
+Turning
+.B sync.portable_paths
+off stores the plain absolute path again.
+.PP
+A machine only reports a project missing if it ever had it.
+.PP
+A project also carries two marks. Its
+.B identity
+is the inode of its
+.IR .git ,
+prefixed with the machine that read it, which is exact but means nothing
+anywhere else. Its
+.B fingerprint
+is the repository's root commit, which is the same on every machine that ever
+cloned it. Together they let a move, a rename and a differently laid out
+machine all be recognised as the same project.
+.B tracker doctor
+reports what is missing either mark.
+
 .SH DAEMON
 The daemon periodically scans the directories configured under
 .B [daemon]
@@ -697,6 +770,15 @@ Use a different file for the numbering of the last listing.
 Use a different file for the numbering of the last todo listing. Without it the
 todo numbering follows
 .BR TRACKER_VIEW .
+.TP
+.B TRACKER_ROOTS
+Use a different file for the roots this machine defines.
+.TP
+.BI TRACKER_ROOT_ NAME
+Define one root, overriding both files. The name is lowercased, so
+.B TRACKER_ROOT_MEDIA
+defines
+.IR @media .
 .TP
 .B TRACKER_SHARE
 Look for the shipped help text and default settings in this directory.
@@ -749,6 +831,15 @@ Project database.
 Todo list.
 
 .TP
+.I ~/.config/tracker/roots.toml
+Roots this machine alone defines, meant to stay out of whatever syncs the
+settings.
+
+.TP
+.I ~/.local/state/tracker/machine
+This machine's name, so an inode recorded here is not believed elsewhere.
+
+.TP
 .I ~/.local/state/tracker/view.json
 The numbering of the last listing, what a temporary ID points at.
 
@@ -768,4 +859,4 @@ Daemon process ID.
 MattFor
 
 .SH VERSION
-1.1.0
+1.2.0

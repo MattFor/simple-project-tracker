@@ -1,13 +1,14 @@
 import time
-
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypeVar
-from collections.abc import Callable
 
 from tracker.config import paths
-from tracker.util.files import load_pkl, save_pkl
+from tracker.config.settings import Settings
+from tracker.config.settings import settings as default_settings
 from tracker.core.models import TRANSIENT_FIELDS, Projects, normalise
-from tracker.config.settings import Settings, settings as default_settings
+from tracker.core.portable import contract_paths, expand_paths
+from tracker.util.files import load_pkl, save_pkl
 
 T = TypeVar("T")
 
@@ -62,7 +63,15 @@ def data_path(settings: Settings | None = None) -> Path:
 
 
 def load_data(settings: Settings | None = None) -> Projects:
-	return read(data_path(settings), normalise, "database")
+	return local(read(data_path(settings), normalise, "database"), settings)
+
+
+def local(data: Projects, settings: Settings | None = None) -> Projects:
+	return expand_paths(data, settings)
+
+
+def shared(data: Projects, settings: Settings | None = None) -> Projects:
+	return contract_paths(data, settings)
 
 
 def save_data(
@@ -72,4 +81,6 @@ def save_data(
 		for field in TRANSIENT_FIELDS:
 			_ = project.pop(field, None)
 
-	return write(data_path(settings), data, "database", undoable=undoable)
+	return write(
+		data_path(settings), shared(data, settings), "database", undoable=undoable
+	)

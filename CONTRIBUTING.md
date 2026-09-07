@@ -43,7 +43,7 @@ pre-commit install
 ## Where things live
 
 | Path                      | What is in it                                              |
-|---------------------------|------------------------------------------------------------|
+| ------------------------- | ---------------------------------------------------------- |
 | `tracker/cli/app.py`      | Argument parsing: aliases, fusing, splitting into commands |
 | `tracker/cli/commands.py` | One function per command, plus the shared `Context`        |
 | `tracker/core/`           | Discovery, selection, identity, labels, storage, daemon    |

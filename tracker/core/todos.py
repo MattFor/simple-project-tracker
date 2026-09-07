@@ -1,13 +1,11 @@
 import time
-
 from pathlib import Path
 from typing import Any, NotRequired, TypedDict
 
 from tracker.config import paths
-from tracker.util.text import parse_time
-from tracker.core.storage import read, write
-from tracker.config.settings import Settings, settings as default_settings
-
+from tracker.config.settings import Settings
+from tracker.config.settings import settings as default_settings
+from tracker.core import entries as shared
 from tracker.core.entries import (
 	ALL_SELECTORS,
 	Rows,
@@ -20,8 +18,8 @@ from tracker.core.entries import (
 	status_of,
 	status_values,
 )
-
-from tracker.core import entries as shared
+from tracker.core.storage import read, write
+from tracker.util.text import parse_time
 
 __all__ = [
 	"ALL_SELECTORS",
@@ -282,7 +280,8 @@ def _notes(key: str, todo: Todo) -> list[str]:
 
 
 def _rows(rows: Rows, settings: Settings, numbering: dict[str, int]) -> list[str]:
-	from tracker.ui.todos import render_rows, view as todo_view
+	from tracker.ui.todos import render_rows
+	from tracker.ui.todos import view as todo_view
 
 	# Already the td view, so the forced columns are not read back over
 	shown = todo_view(settings)

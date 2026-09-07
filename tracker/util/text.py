@@ -1,5 +1,4 @@
 import re
-
 from datetime import datetime
 
 _ANSI = re.compile(r"\033\[[0-9;]*m")

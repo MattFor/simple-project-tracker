@@ -1,34 +1,40 @@
-import os
-import sys
+import contextlib
 import copy
-import time
 import errno
+import os
 import signal
 import subprocess
-import contextlib
-
-from typing import Any
-from pathlib import Path
+import sys
+import time
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
 
 from tracker.config import paths
-from tracker.core.labels import apply_labels
-from tracker.core.identity import apply_moves
+from tracker.config.settings import Settings
+from tracker.config.settings import settings as default_settings
 from tracker.core.discovery import excluded, find_projects
-from tracker.config.settings import Settings, settings as default_settings
-
+from tracker.core.identity import (
+	apply_moves,
+	forget_seen,
+	kept_elsewhere,
+	mark,
+	vanished,
+	was_seen,
+)
+from tracker.core.labels import apply_labels
 from tracker.core.models import (
 	Projects,
-	archive as archive_project,
 	get_id,
 	restore,
 )
-
+from tracker.core.models import (
+	archive as archive_project,
+)
+from tracker.core.storage import data_path, load_data, save_data
 from tracker.ui.ansi import C
 from tracker.ui.ask import confirm
 from tracker.util.files import load_json, read_toml, save_json
-from tracker.core.storage import data_path, load_data, save_data
-
 
 #
 # Process control
@@ -368,10 +374,7 @@ def _refresh(data: Projects, found: Projects, timestamp: str) -> None:
 
 		existing["last_touched"] = scanned_project["last_touched"]
 
-		identity = str(scanned_project.get("identity", "") or "")
-
-		if identity:
-			existing["identity"] = identity
+		_ = mark(project_path, existing)
 
 		if existing.get("archived", False):
 			restore(existing)
@@ -385,6 +388,7 @@ def _missing(
 		for project_path in data
 		if project_path not in found
 		and not excluded(project_path, exclude)
+		and was_seen(data[project_path])
 		and any(Path(project_path).is_relative_to(root) for root in valid)
 	]
 
@@ -436,11 +440,21 @@ def merge_scan(
 	added = [path for path in data if path not in before_paths]
 	gone = _missing(data, valid, found, exclude)
 
-	moved = apply_moves(data, added, gone) if settings["scan"]["detect_moves"] else []
+	candidates = gone + [
+		path
+		for path in before_paths
+		if path not in found and path not in gone and vanished(path, data[path])
+	]
+
+	moved = (
+		apply_moves(data, added, candidates) if settings["scan"]["detect_moves"] else []
+	)
 
 	for old, new in moved:
 		added.remove(new)
-		gone.remove(old)
+
+		if old in gone:
+			gone.remove(old)
 
 	limit: int = settings["scan"]["vanish_limit"]
 	blocked = set(_vanished_too_many(data, valid, gone, limit))
@@ -452,6 +466,11 @@ def merge_scan(
 			continue
 
 		project = data[project_path]
+
+		_ = forget_seen(project)
+
+		if kept_elsewhere(project):
+			continue
 
 		if not archive:
 			removed.append(project_path)

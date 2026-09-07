@@ -118,37 +118,37 @@ default_status = "unknown"
 
 # Directories that are never scanned and never count as "your own work".
 ignore = [
-    ".git",
-    ".venv",
-    "venv",
-    "dist",
-    "build",
-    "target",
-    "__pycache__",
-    "node_modules",
-    ".idea",
-    ".vscode",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache"
+  ".git",
+  ".venv",
+  "venv",
+  "dist",
+  "build",
+  "target",
+  "__pycache__",
+  "node_modules",
+  ".idea",
+  ".vscode",
+  ".mypy_cache",
+  ".pytest_cache",
+  ".ruff_cache",
 ]
 
 # Generated files that do not count as "your own work" either.
 ignore_files = [
-    "*.pkl",
-    "*.pyc",
-    "*.pyo",
-    "*.log",
-    "*.lock",
-    "*.pid",
-    "*.tmp",
-    "*.swp",
-    "*.bak",
-    "*.orig",
-    "*.db",
-    "*.sqlite",
-    "*.sqlite3",
-    ".DS_Store"
+  "*.pkl",
+  "*.pyc",
+  "*.pyo",
+  "*.log",
+  "*.lock",
+  "*.pid",
+  "*.tmp",
+  "*.swp",
+  "*.bak",
+  "*.orig",
+  "*.db",
+  "*.sqlite",
+  "*.sqlite3",
+  ".DS_Store",
 ]
 
 # Give a project its status from how long ago it was last touched.
@@ -277,6 +277,27 @@ newest_first = false
 file = "data.pkl"
 
 
+[sync]
+# Keeping the database in a Syncthing, Dropbox or git folder means other
+# machines read it, and they keep their projects somewhere else. Store
+# ~/code/tracker rather than /home/you/code/tracker so each machine expands it
+# to its own directory instead of tracking a second copy of everything.
+#
+# Turning this off stores the plain absolute path.
+portable_paths = true
+
+# Anything under home already travels as ~. Name the directories that do not,
+# and give the same name a different value on each machine.
+#
+# A root only this machine knows about belongs in a file that never syncs,
+# ~/.config/tracker/roots.toml, holding the same table. Those win over the ones
+# here, and TRACKER_ROOT_<NAME> wins over both.
+#
+# media = "/archives/media"
+# work = "/srv/projects"
+[sync.roots]
+
+
 [logging]
 always_verbose = false
 
@@ -284,7 +305,7 @@ always_verbose = false
 [daemon]
 # Directories to monitor
 paths = [
-    "~/Programming" # For example
+  "~/Programming", # For example
 ]
 
 # Whether to still keep deleted projects

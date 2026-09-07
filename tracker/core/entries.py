@@ -1,10 +1,9 @@
 import os
 import re
-
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeVar
-from dataclasses import dataclass
-from collections.abc import Callable, Mapping
 
 from tracker.config.settings import Settings
 
@@ -282,6 +281,9 @@ _STATUS = re.compile(r"(status|state|st|s)[:=](.+)", re.IGNORECASE)
 
 ALL_SELECTORS = ("all", "*")
 
+PREFER_ID = "prefer_id"
+PREFER_TID = "prefer_tid"
+
 
 def status_filter(token: str) -> str | None:
 	match = _STATUS.fullmatch(token.strip())
@@ -308,7 +310,7 @@ def resolve_selection(
 	preference: str = settings["projects"]["conflict_resolution_preference"]
 
 	numbers_mean: str = settings["projects"]["number_preference"]
-	fallback = numbers_mean if numbers_mean in ("id", "tid") else "any"
+	fallback = f"prefer_{numbers_mean}" if numbers_mean in ("id", "tid") else "any"
 
 	def report(message: str) -> None:
 		if not quiet:
@@ -338,7 +340,15 @@ def resolve_selection(
 		if source == "tid":
 			return by_temporary
 
-		if by_id and by_temporary and by_id[0][0] != by_temporary[0][0]:
+		both = bool(by_id and by_temporary and by_id[0][0] != by_temporary[0][0])
+
+		if source == PREFER_ID:
+			return by_id if both else (by_id or by_temporary)
+
+		if source == PREFER_TID:
+			return by_temporary if both else (by_id or by_temporary)
+
+		if both:
 			return by_id + by_temporary
 
 		return by_id or by_temporary
@@ -354,7 +364,9 @@ def resolve_selection(
 
 		if not found:
 			if complain:
-				report(f"[ERROR] no {space.noun} matches ID/TID '{number}'")
+				kind = {"id": "ID", "tid": "TID"}.get(source, "ID/TID")
+
+				report(f"[ERROR] no {space.noun} matches {kind} '{number}'")
 
 			return False
 
@@ -521,6 +533,10 @@ def resolve_selection(
 
 		report(f"[ERROR] multiple {space.plural} match '{selector}':")
 		show(list(found), renumber=True)
+
+		rows = ", ".join(f":{number}" for number in range(1, min(len(found), 3) + 1))
+
+		report(f"        pick a row with {rows}, or an ID with i:<id>")
 
 		return False
 
