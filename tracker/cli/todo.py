@@ -1,3 +1,4 @@
+import sys
 from typing import Any, final
 
 from tracker.cli.entries import (
@@ -31,6 +32,7 @@ from tracker.core.todos import (
 )
 from tracker.ui import mentions
 from tracker.ui.ansi import C
+from tracker.ui.ask import confirm as ask
 from tracker.ui.help import print_topic
 from tracker.ui.todos import (
 	note_text,
@@ -94,6 +96,9 @@ ALIASES = {
 TAKES_SELECTION = frozenset(
 	{"check", "done", "edit", "note", "remove", "rename", "reopen", "status"}
 )
+
+# The words that end a new todo's name and start its fields, as in add milk n oat
+ADD_FIELDS = frozenset({"n", "nt", "s", "st"})
 
 
 def action_of(token: str) -> str:
@@ -209,12 +214,26 @@ def action_list(context: Context, args: list[str]) -> int:
 
 
 def action_add(context: Context, args: list[str]) -> int:
-	name = " ".join(args).strip()
+	at = next(
+		(
+			index
+			for index, token in enumerate(args)
+			if token.lower().strip("-") in ADD_FIELDS
+		),
+		len(args),
+	)
+
+	name = " ".join(args[:at]).strip()
 
 	if not name:
 		print("[ERROR] add requires something to do")
-		print(f"{C.GRAY}        t td add read the manual{C.RESET}")
+		print(f"{C.GRAY}        t td add read the manual n before friday{C.RESET}")
 
+		return 1
+
+	wanted = TODO.fields_from(args[at:])
+
+	if wanted is None:
 		return 1
 
 	settings = context.settings
@@ -226,6 +245,9 @@ def action_add(context: Context, args: list[str]) -> int:
 		todo_id=next_id(todos),
 		created=stamp(settings),
 	)
+
+	for field, value in wanted:
+		TODO.set(context, todo, field, value)
 
 	key = key_of(todo)
 	todos[key] = todo
@@ -325,6 +347,27 @@ def action_undo(context: Context) -> int:
 	return 0
 
 
+def offer_new(context: Context, name: str) -> bool:
+	"""A note or status for a todo that is not there yet may be meant to add it."""
+
+	# A number, a range or a selector (#3, :2, s:todo, all) names one that should exist
+	if (
+		name.lower() in ALL_SELECTORS
+		or not any(letter.isalpha() for letter in name)
+		or any(mark in name for mark in ":=")
+	):
+		return False
+
+	# The same test a name selector makes, so a todo it would find is never doubled
+	if any(name.lower() in todo["name"].lower() for todo in TODO.load(context).values()):
+		return False
+
+	if not (context.assume_yes or sys.stdin.isatty()):
+		return False
+
+	return ask(f"no todo matches '{name}', add it?", assume_yes=context.assume_yes)
+
+
 #
 # The command
 #
@@ -337,12 +380,31 @@ def command_todo(context: Context, args: list[str]) -> int:
 	action = action_of(args[0]) if args else "list"
 	arguments = args[1:]
 
-	# A td may come before its action
-	if not action and len(args) > 1:
-		following = action_of(args[1])
+	# A td may come before its action, and every word up to it is its name
+	if not action:
+		at = next(
+			(
+				index
+				for index, token in enumerate(args)
+				if action_of(token) in TAKES_SELECTION
+			),
+			0,
+		)
 
-		if following in TAKES_SELECTION:
-			action, arguments = following, [args[0], *args[2:]]
+		if at:
+			action, arguments = (
+				action_of(args[at]),
+				[" ".join(args[:at]), *args[at + 1 :]],
+			)
+
+	if (
+		action in ("note", "status")
+		and len(arguments) > 1
+		and offer_new(context, arguments[0])
+	):
+		mark = "n" if action == "note" else "s"
+
+		return action_add(context, [arguments[0], mark, *arguments[1:]])
 
 	context.log(f"todos: {len(TODO.load(context))}")
 

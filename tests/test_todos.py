@@ -150,6 +150,48 @@ def test_a_todo_may_come_before_its_action(tmp_path: Path):
 	assert status_of(load_todos(holder.settings)["1"]) == "blocked"
 
 
+def test_every_word_before_the_action_is_the_todo(tmp_path: Path):
+	holder = context(tmp_path)
+
+	_ = run(holder, "add", "read the manual")
+	_ = run(holder, "add", "write the docs")
+
+	output = run(holder, "write", "the", "docs", "n", "before", "friday")
+
+	assert "note did nothing" not in output
+	assert load_todos(holder.settings)["2"].get("note") == "before friday"
+
+
+def test_a_todo_is_added_with_its_note_and_status(tmp_path: Path):
+	holder = context(tmp_path)
+
+	_ = run(holder, "add", "buy", "milk", "s", "blocked", "n", "oat", "not", "dairy")
+
+	todo = load_todos(holder.settings)["1"]
+
+	assert todo["name"] == "buy milk"
+	assert status_of(todo) == "blocked"
+	assert todo.get("note") == "oat not dairy"
+
+
+def test_a_note_for_a_missing_todo_adds_it(tmp_path: Path):
+	holder = context(tmp_path)
+
+	_ = run(holder, "add", "read the manual")
+	_ = run(holder, "lexiglance", "n", "respond", "to", "the", "pr")
+
+	todo = load_todos(holder.settings)["2"]
+
+	assert todo["name"] == "lexiglance"
+	assert todo.get("note") == "respond to the pr"
+
+	_ = run(holder, "9", "n", "nothing")
+	_ = run(holder, "manual", "n", "just the note")
+
+	assert len(load_todos(holder.settings)) == 2
+	assert load_todos(holder.settings)["1"].get("note") == "just the note"
+
+
 def test_a_bare_note_clears_it(tmp_path: Path):
 	holder = context(tmp_path)
 

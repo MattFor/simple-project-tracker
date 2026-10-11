@@ -424,16 +424,16 @@ class Kind:
 
 		return wanted
 
-	def edit(self, context: Context, args: list[str]) -> int:
+	def edit(self, context: Context, args: list[str], command: str = "edit") -> int:
 		if not args:
-			return self.missing("edit")
+			return self.missing(command)
 
 		if len(args) < 2:
 			print(f"[ERROR] edit requires a field: {', '.join(self.editable)}")
 			return 1
 
 		entries = self.load(context)
-		selected = self.chosen(context, entries, [args[0]], "edit")
+		selected = self.chosen(context, entries, [args[0]], command)
 
 		if selected is None:
 			return 1
@@ -514,13 +514,13 @@ class Kind:
 			return self.missing(name)
 
 		if name in self.greedy:
-			return self.edit(context, [args[0], name, *args[1:]])
+			return self.edit(context, [args[0], name, *args[1:]], name)
 
 		if len(args) < 2:
 			print(f"[ERROR] {name} requires a value")
 			return 1
 
-		return self.edit(context, [args[0], name, " ".join(args[1:])])
+		return self.edit(context, [args[0], name, " ".join(args[1:])], name)
 
 	def statuses(self, context: Context) -> int:
 		settings = context.settings

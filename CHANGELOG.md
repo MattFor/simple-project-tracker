@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.1]
+
+### Added
+
+- `t td add <name> n <note>` and `s <status>` set the note and status as the todo is
+  added, instead of folding them into its name.
+- A note or status for a todo that does not exist yet (`t td lexiglance n ...`) offers to
+  add it.
+
+### Fixed
+
+- `t td <name> n <note>` with a name of more than one word, every word before the action
+  is now the todo.
+- A note or status that matched nothing said `edit did nothing`, it now names the command.
+
 ## [1.2.0]
 
 ### Added

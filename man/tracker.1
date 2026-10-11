@@ -123,7 +123,10 @@ The action may follow the todo, so
 .B "tracker td 3 st blocked"
 and
 .B "tracker td status 3 blocked"
-are the same. With no action at all the whole list is printed. The list has its
+are the same, and every word before the action names the todo. A note or status
+for a todo no name matches offers to add it, and
+.B "tracker td add milk s shop n oat"
+adds one with both. With no action at all the whole list is printed. The list has its
 own IDs, its own numbering and its own undo. A note may point at a project with
 .BI @ name ,
 printed as the project, its ID and the row it last held, in the colour of its

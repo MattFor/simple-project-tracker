@@ -88,9 +88,11 @@ List of notes that's separate from the main project database.
 ```sh
 t td                          # the whole list
 t td add write the changelog  # the rest of the line is the name
+t td add milk s shop n oat    # with a status and a note up front
 t td 3 done                   # also: t td done 3
 t td 3 st blocked             # any status you like
 t td 3 n waiting on review    # and a note under it
+t td write the docs n today   # by name; offers to add one that is not there
 t td list s:todo              # only what is still open
 t td clear                    # drop every finished one
 t td undo                     # take the last change back

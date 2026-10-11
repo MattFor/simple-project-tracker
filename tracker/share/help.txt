@@ -154,7 +154,7 @@
 
       {GRAY}Usage:{RESET}
          {GREEN}tracker todo{RESET}
-         {GREEN}tracker todo add <what to do...>{RESET}
+         {GREEN}tracker todo add <what to do...> [s <status>] [n <note...>]{RESET}
          {GREEN}tracker todo done <selection>{RESET}
          {GREEN}tracker todo reopen <selection>{RESET}
          {GREEN}tracker todo status <selection> <value>{RESET}
@@ -470,6 +470,7 @@
 
    {GREEN}t td{RESET}                     {GRAY}every todo{RESET}
    {GREEN}t td add <what to do>{RESET}    {GRAY}the rest of the line is the name{RESET}
+   {GREEN}t td add milk n oat{RESET}      {GRAY}up to {GREEN}n{GRAY} or {GREEN}s{GRAY}, then the note or status{RESET}
    {GREEN}t td done <selection>{RESET}    {GRAY}stamps it and marks it {GREEN}done{RESET}
    {GREEN}t td reopen <selection>{RESET}  {GRAY}puts it back{RESET}
    {GREEN}t td clear{RESET}               {GRAY}removes every finished one{RESET}
@@ -499,6 +500,8 @@
       {GREEN}t td 3 done{RESET}           {GRAY}the same as {GREEN}t td done 3{RESET}
       {GREEN}t td 3 st blocked{RESET}
       {GREEN}t td 3 nt {r}broken{/} build{RESET}
+      {GREEN}t td the docs n ok{RESET}    {GRAY}every word up to the action names the todo{RESET}
+      {GREEN}t td milk n oat{RESET}       {GRAY}offers to add one when nothing is called that{RESET}
 
    {GRAY}Editing takes the same fields and short forms as a project does:{RESET}
 
