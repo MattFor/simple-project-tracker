@@ -772,6 +772,20 @@ def test_a_todo_check_names_the_projects_it_is_about(tmp_path: Path):
 	assert "beta" not in shown
 
 
+def test_a_todo_named_after_a_project_is_about_it():
+	from tests.helpers import SAMPLE, make_projects
+	from tracker.core.todos import new_todo
+	from tracker.ui.mentions import about
+
+	projects = make_projects(*SAMPLE)
+
+	todo = new_todo("Alpha", status="todo", note="then @gamma", todo_id=1)
+	loose = new_todo("alp", status="todo", todo_id=2)
+
+	assert [Path(path).name for path in about(todo, projects)] == ["alpha", "gamma"]
+	assert about(loose, projects) == []
+
+
 def test_a_todo_that_names_nothing_keeps_the_check_quiet(tmp_path: Path):
 	from tests.helpers import SAMPLE, make_projects
 	from tracker.ui import mentions

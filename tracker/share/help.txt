@@ -4,7 +4,8 @@
    {GREEN}tracker <command> [arguments] [options]{RESET}
    {GREEN}tracker <project> <command> [arguments] [options]{RESET}
 
-   {GRAY}No arguments prints the tracked projects.{RESET}
+   {GRAY}No arguments prints the tracked projects. With {GREEN}output.browser{GRAY} on it opens the{RESET}
+   {GRAY}project browser in a terminal instead. {GREEN}tracker list{GRAY} always prints them.{RESET}
    {GRAY}Commands that work on a project accept it before or after the command.{RESET}
 
 {BOLD}Commands:{RESET}

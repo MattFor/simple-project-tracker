@@ -223,6 +223,10 @@ colour = true
 compact = false
 absolute_paths = true
 
+# tracker with no command opens the project browser in a terminal instead of
+# printing the list.
+browser = false
+
 
 [todos]
 # TRACKER_TODOS overrides this.

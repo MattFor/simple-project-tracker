@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- A project browser in a terminal: the monitored folders as a tree, statuses and last changes.
+- A todo named exactly after a project counts as being about it (just like `@mention` with `check`)
+
 ## [1.2.1]
 
 ### Added

@@ -166,10 +166,27 @@ def points_at(text: str, projects: Projects) -> list[str]:
 	return paths
 
 
+def named_after(todo: Todo, projects: Projects) -> str | None:
+	name = str(todo.get("name", "")).strip().lower()
+	named = [path for path in projects if Path(path).name.lower() == name]
+
+	return named[0] if len(named) == 1 else None
+
+
+def about(todo: Todo, projects: Projects) -> list[str]:
+	paths = points_at(_wording(todo), projects)
+	named = named_after(todo, projects)
+
+	if named is not None and named not in paths:
+		paths.insert(0, named)
+
+	return paths
+
+
 def projects_of(todo: Todo, settings: Settings) -> list[tuple[str, Project]]:
 	projects = _projects(settings)
 
-	return [(path, projects[path]) for path in points_at(_wording(todo), projects)]
+	return [(path, projects[path]) for path in about(todo, projects)]
 
 
 def todos_about(path: str, settings: Settings) -> Todos:
@@ -182,7 +199,7 @@ def todos_about(path: str, settings: Settings) -> Todos:
 	return {
 		key: todo
 		for key, todo in _todos(settings).items()
-		if path in points_at(_wording(todo), projects)
+		if path in about(todo, projects)
 	}
 
 

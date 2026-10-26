@@ -393,6 +393,11 @@ def main(argv: list[str] | None = None) -> int:
 	context.log(f"projects: {len(context.data)}")
 
 	if not args:
+		if settings["output"]["browser"] and sys.stdin.isatty() and sys.stdout.isatty():
+			from tracker.ui.tui import run
+
+			return run(context.data, settings)
+
 		print_projects(context.data, settings)
 		return 0
 

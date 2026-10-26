@@ -3,53 +3,49 @@ name: Release
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   release:
     name: Publish the release
     runs-on: ubuntu-latest
+    needs: [ci]
 
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
-      - uses: actions/setup-python@v7
+      - uses: actions/download-artifact@v8
         with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Build
-        run: |
-          python -m pip install --upgrade pip build twine
-          python -m build
-          python -m twine check dist/*
+          name: dist
+          path: dist
 
       - name: Check the version against the tag
         run: |
           tag="${GITHUB_REF_NAME#v}"
-          version="$(python -c 'import tomllib,pathlib;print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
+          version="$(python3 -c 'import tomllib,pathlib;print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
 
           if [ "$tag" != "$version" ]; then
             echo "tag $tag does not match pyproject version $version" >&2
             exit 1
           fi
 
-      - name: GitHub release
-        uses: softprops/action-gh-release@v3
+      - name: Release notes from the changelog
+        run: awk -v v="## [${GITHUB_REF_NAME#v}]" 'index($0, v) == 1 {p = 1; next} /^## \[/ {p = 0} p' CHANGELOG.md > notes.md
+
+      - uses: softprops/action-gh-release@v3
         with:
           files: dist/*
-          generate_release_notes: true
+          body_path: notes.md
 
   pypi:
     name: Publish to PyPI
     runs-on: ubuntu-latest
     needs: [release]
-    if: startsWith(github.ref, 'refs/tags/v')
 
     environment:
       name: pypi
@@ -59,16 +55,10 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v7
+      - uses: actions/download-artifact@v8
         with:
-          python-version: "3.12"
-
-      - name: Build
-        run: |
-          python -m pip install --upgrade pip build
-          python -m build
+          name: dist
+          path: dist
 
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1

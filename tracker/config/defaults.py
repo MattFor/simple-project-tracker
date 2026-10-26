@@ -162,6 +162,7 @@ def defaults() -> dict[str, Any]:
 			"colour": True,
 			"compact": False,
 			"absolute_paths": True,
+			"browser": False,
 		},
 		"todos": {
 			"display": {},

@@ -36,6 +36,19 @@ class Patch:
 
 		os.chdir(path)
 
+	def setenv(self, name: str, value: str) -> None:
+		previous = os.environ.get(name)
+
+		def restore() -> None:
+			if previous is None:
+				_ = os.environ.pop(name, None)
+			else:
+				os.environ[name] = previous
+
+		self._undo.append(restore)
+
+		os.environ[name] = value
+
 	def undo(self) -> None:
 		for restore in reversed(self._undo):
 			restore()
