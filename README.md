@@ -38,12 +38,7 @@ Python 3.11+. Then `t init ~/(your project directory)` to fill the database.
 
 ## Commands
 
-`t` on its own lists your projects. With `output.browser` on it opens a browser instead: your
-monitored folders as a tree, each project's status and last change, and the `check` view of
-the selected one beside it. Arrows move and fold, enter opens the details, `?` lists every
-key: search, every project instead of the filtered ones, a flat list, the full tree, sorting,
-one status at a time. Tab switches to your todos and the projects each one is about. `q`
-quits. Piped, or with `t list`, it prints the table instead.
+`t` on its own lists projects. With `output.browser` on it opens a browser.
 
 | Command      | Aliases             | What it does                                                         |
 | ------------ | ------------------- | -------------------------------------------------------------------- |
