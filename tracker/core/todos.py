@@ -147,13 +147,24 @@ def new_todo(
 	return todo
 
 
-def set_field(todo: Todo, field: str, value: str) -> None:
+def set_field(todo: Todo, field: str, value: str, settings: Settings) -> None:
 	if field == "name":
 		todo["name"] = value
 	elif field == "status":
 		todo["status"] = value
 	elif field == "note":
 		todo["note"] = value
+
+	moment = stamp(settings)
+	todo["updated"] = moment
+
+	if field != "status":
+		return
+
+	if value.strip().lower() == done_status(settings):
+		todo["done_at"] = moment
+	else:
+		_ = todo.pop("done_at", None)
 
 
 def normalise(todos: Any) -> Todos:
@@ -209,9 +220,7 @@ def load_todos(settings: Settings | None = None) -> Todos:
 	return read(todo_path(settings), normalise, "todo list")
 
 
-def save_todos(
-	todos: Todos, settings: Settings | None = None, *, undoable: bool = True
-) -> bool:
+def save_todos(todos: Todos, settings: Settings | None = None, *, undoable: bool = True) -> bool:
 	return write(todo_path(settings), todos, "todo list", undoable=undoable)
 
 
@@ -293,9 +302,7 @@ def _rows(rows: Rows, settings: Settings, numbering: dict[str, int]) -> list[str
 	except (KeyError, ValueError):
 		shown = todo_view(settings)
 
-	return render_rows(
-		rows, shown, numbering, show_headers=True, show_notes=False, prefix="  "
-	)
+	return render_rows(rows, shown, numbering, show_headers=True, show_notes=False, prefix="  ")
 
 
 TODOS = Space(

@@ -181,11 +181,7 @@ def layout(settings: Settings, todos: Iterable[Todo] = ()) -> list[Segment]:
 	fields = columns(settings)
 
 	# A column of nothing but the status new todos start with is a column of nothing
-	if (
-		"status" in fields
-		and len(fields) > 1
-		and not any(shown_status(todo, settings) for todo in todos)
-	):
+	if "status" in fields and len(fields) > 1 and not any(shown_status(todo, settings) for todo in todos):
 		fields = [field for field in fields if field != "status"]
 
 	return columns_layout(fields, settings)
@@ -233,14 +229,8 @@ def render_rows(
 		settings,
 		paint,
 		shrinkable=SHRINKABLE,
-		show_headers=(
-			bool(settings["display"]["show_headers"])
-			if show_headers is None
-			else show_headers
-		),
-		show_notes=(
-			bool(settings["display"]["show_notes"]) if show_notes is None else show_notes
-		),
+		show_headers=(bool(settings["display"]["show_headers"]) if show_headers is None else show_headers),
+		show_notes=(bool(settings["display"]["show_notes"]) if show_notes is None else show_notes),
 		prefix=prefix,
 		width=terminal_width(settings) if width is None else width,
 	)
@@ -323,7 +313,7 @@ def _stamp(value: str, settings: Settings) -> str:
 	return f"{value}  {C.GRAY}({relative}){C.RESET}"
 
 
-def print_todo(todo: Todo, settings: Settings, tid: int = 0) -> None:
+def print_todo(todo: Todo, settings: Settings, tid: int = 0, *, width: int = 70) -> None:
 	settings = view(settings)
 
 	name = str(todo.get("name", ""))
@@ -359,5 +349,5 @@ def print_todo(todo: Todo, settings: Settings, tid: int = 0) -> None:
 		for line in note.splitlines() or [note]:
 			shown = markup(mentions.render(line, settings, "GRAY"), "GRAY")
 
-			for piece in wrap(shown, 70) or [""]:
+			for piece in wrap(shown, width) or [""]:
 				print(f"  {C.GRAY}{piece}{C.RESET}")

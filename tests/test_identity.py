@@ -63,9 +63,7 @@ def test_a_move_is_followed_by_the_fingerprint(tmp_path: Path):
 	new = str(tmp_path / "new-home")
 
 	data: Projects = {
-		old: new_project(
-			old, status="dev", note="kept", project_id=3, fingerprint="git:abc"
-		),
+		old: new_project(old, status="dev", note="kept", project_id=3, fingerprint="git:abc"),
 		new: new_project(new, status="unknown", project_id=9, fingerprint="git:abc"),
 	}
 
@@ -109,9 +107,7 @@ def test_an_inode_from_another_machine_pairs_with_nothing(tmp_path: Path):
 def test_an_inode_recorded_before_machines_had_names_is_restamped(tmp_path: Path):
 	(tmp_path / ".git").mkdir()
 
-	project = new_project(
-		str(tmp_path), status="dev", project_id=1, identity="66306:1234"
-	)
+	project = new_project(str(tmp_path), status="dev", project_id=1, identity="66306:1234")
 
 	assert needs_marking(project)
 	assert mark(str(tmp_path), project)
@@ -153,9 +149,7 @@ def test_another_machine_s_inode_is_left_where_it_is(tmp_path: Path):
 	assert project.get("identity") == elsewhere()
 
 
-def test_a_matching_fingerprint_outvotes_an_inode_that_disagrees(
-	tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_a_matching_fingerprint_outvotes_an_inode_that_disagrees(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 	(tmp_path / ".git").mkdir()
 
 	def same(path: str) -> str:
@@ -176,9 +170,7 @@ def test_a_matching_fingerprint_outvotes_an_inode_that_disagrees(
 	assert not vanished(str(tmp_path), project)
 
 
-def test_a_different_repository_at_the_same_path_has_vanished(
-	tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_a_different_repository_at_the_same_path_has_vanished(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 	(tmp_path / ".git").mkdir()
 
 	def other(path: str) -> str:

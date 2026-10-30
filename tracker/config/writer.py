@@ -42,9 +42,7 @@ def _section_bounds(lines: list[str], section: str) -> tuple[int, int] | None:
 	return start, len(lines)
 
 
-def _value_span(
-	lines: list[str], start: int, end: int, key: str
-) -> tuple[int, int] | None:
+def _value_span(lines: list[str], start: int, end: int, key: str) -> tuple[int, int] | None:
 	assignment = re.compile(rf"^\s*{re.escape(key)}\s*=")
 
 	for index in range(start, end):

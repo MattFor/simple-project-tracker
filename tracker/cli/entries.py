@@ -105,9 +105,7 @@ def confirm(context: Context, question: str) -> bool:
 	)
 
 
-def all_or_nothing(
-	selected: Entries, unmatched: list[str], command: str, args: list[str]
-) -> Entries | None:
+def all_or_nothing(selected: Entries, unmatched: list[str], command: str, args: list[str]) -> Entries | None:
 	if unmatched:
 		# Do not repeat a second error
 		if len(args) > 1:
@@ -120,9 +118,7 @@ def all_or_nothing(
 	return selected or None
 
 
-def report_undo(
-	before: Mapping[str, Any], after: Mapping[str, Any], noun: str, again: str
-) -> None:
+def report_undo(before: Mapping[str, Any], after: Mapping[str, Any], noun: str, again: str) -> None:
 	from tracker.core.undo import differences
 
 	added, removed, changed = differences(before, after)
@@ -130,9 +126,7 @@ def report_undo(
 	print(f"undone, {plural(len(after), noun)} tracked")
 
 	parts = [
-		f"{count} {word}"
-		for count, word in ((added, "added"), (removed, "removed"), (changed, "changed"))
-		if count
+		f"{count} {word}" for count, word in ((added, "added"), (removed, "removed"), (changed, "changed")) if count
 	]
 
 	if parts:
@@ -244,24 +238,18 @@ class Kind:
 		*,
 		quiet: bool = False,
 	) -> tuple[Entries, list[str]]:
-		selected, unmatched = resolve_selection(
-			entries, context.settings, selectors, self.space, quiet=quiet
-		)
+		selected, unmatched = resolve_selection(entries, context.settings, selectors, self.space, quiet=quiet)
 
 		self.used(context, selected)
 
 		return selected, unmatched
 
-	def chosen(
-		self, context: Context, entries: Entries, args: list[str], command: str
-	) -> Entries | None:
+	def chosen(self, context: Context, entries: Entries, args: list[str], command: str) -> Entries | None:
 		selected, unmatched = self.resolve(context, entries, args)
 
 		return all_or_nothing(selected, unmatched, command, args)
 
-	def one_row(
-		self, context: Context, entries: Entries, numbering: dict[str, int]
-	) -> str:
+	def one_row(self, context: Context, entries: Entries, numbering: dict[str, int]) -> str:
 		lines = self.rows(context, entries, numbering, notes=False)
 
 		return lines[0] if lines else ""
@@ -350,9 +338,7 @@ class Kind:
 			print("cancelled")
 			return 1
 
-		lines = self.rows(
-			context, selected, self.numbering(context, entries), prefix="  "
-		)
+		lines = self.rows(context, selected, self.numbering(context, entries), prefix="  ")
 
 		for key in selected:
 			del entries[key]
@@ -533,9 +519,7 @@ class Kind:
 		print(f"{C.BOLD}Statuses in use{C.RESET}")
 
 		for status, count in sorted(counts.items(), key=lambda item: (-item[1], item[0])):
-			print(
-				f"  {C.paint(status.ljust(16), status_colour(status, settings))}{count}"
-			)
+			print(f"  {C.paint(status.ljust(16), status_colour(status, settings))}{count}")
 
 		if self.show_unused:
 			configured = settings.get("display.status_colours", {})

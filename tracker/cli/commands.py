@@ -58,9 +58,7 @@ def suggest_command(args: list[str]) -> None:
 	if len(args) != 1:
 		return
 
-	matches = get_close_matches(
-		args[0].lower().strip("-"), list(COMMANDS), n=1, cutoff=0.7
-	)
+	matches = get_close_matches(args[0].lower().strip("-"), list(COMMANDS), n=1, cutoff=0.7)
 
 	if matches:
 		print(f"{C.GRAY}        maybe '{COMMANDS[matches[0]]}'?{C.RESET}")
@@ -189,9 +187,7 @@ def missing_project(command: str) -> int:
 	return PROJECT.missing(command)
 
 
-def select_all_or_nothing(
-	context: Context, command: str, args: list[str]
-) -> Entries | None:
+def select_all_or_nothing(context: Context, command: str, args: list[str]) -> Entries | None:
 	return PROJECT.chosen(context, context.data, args, command)
 
 
@@ -378,10 +374,7 @@ def command_stats(context: Context, args: list[str]) -> int:
 		print(f"  {painted}{count}")
 
 	def stamps(field_name: str) -> list[tuple[Any, str]]:
-		found = [
-			(parse_time(str(project.get(field_name, "")), time_format), path)
-			for path, project in data.items()
-		]
+		found = [(parse_time(str(project.get(field_name, "")), time_format), path) for path, project in data.items()]
 
 		return [(moment, path) for moment, path in found if moment is not None]
 
@@ -428,9 +421,7 @@ def command_stats(context: Context, args: list[str]) -> int:
 #
 
 
-def follow_moves(
-	context: Context, appeared: list[str], root: Path | None = None
-) -> list[tuple[str, str]]:
+def follow_moves(context: Context, appeared: list[str], root: Path | None = None) -> list[tuple[str, str]]:
 	if not context.settings["scan"]["detect_moves"]:
 		return []
 
@@ -439,11 +430,7 @@ def follow_moves(
 		for path in context.data
 		if path not in appeared
 		and vanished(path, context.data[path])
-		and (
-			root is None
-			or Path(path).is_relative_to(root)
-			or context.data[path].get("identity")
-		)
+		and (root is None or Path(path).is_relative_to(root) or context.data[path].get("identity"))
 	]
 
 	moved = apply_moves(context.data, appeared, gone)
@@ -469,11 +456,7 @@ def scan_into(context: Context, root: Path) -> Scan:
 	appeared = [path for path in context.data if path not in known]
 	moved = follow_moves(context, appeared, root)
 
-	scanned = {
-		path: project
-		for path, project in context.data.items()
-		if Path(path).is_relative_to(root)
-	}
+	scanned = {path: project for path, project in context.data.items() if Path(path).is_relative_to(root)}
 
 	_ = apply_labels(scanned, context.settings)
 

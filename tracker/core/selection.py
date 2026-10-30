@@ -55,11 +55,7 @@ __all__ = [
 def _status_rank(settings: Settings) -> Callable[[str], tuple[int, str]]:
 	configured = settings.get("sorting.status_order", [])
 
-	order = (
-		[str(entry).strip().lower() for entry in configured]
-		if isinstance(configured, list)
-		else []
-	)
+	order = [str(entry).strip().lower() for entry in configured] if isinstance(configured, list) else []
 
 	def rank(status: str) -> tuple[int, str]:
 		if not order:
@@ -151,9 +147,7 @@ def _rows(rows: Rows, settings: Settings, numbering: dict[str, int]) -> list[str
 
 	try:
 		view = view.override("display.format", "")
-		view = view.override(
-			"display.columns", ["id", "tid", "name", "status", "last_touched"]
-		)
+		view = view.override("display.columns", ["id", "tid", "name", "status", "last_touched"])
 	except (KeyError, ValueError):
 		view = settings
 
@@ -165,9 +159,7 @@ def _rows(rows: Rows, settings: Settings, numbering: dict[str, int]) -> list[str
 #
 
 
-def filter_projects(
-	projects: Projects, filters: list[str], *, quiet: bool = False
-) -> Projects:
+def filter_projects(projects: Projects, filters: list[str], *, quiet: bool = False) -> Projects:
 	return filter_entries(projects, filters, PROJECTS, quiet=quiet)
 
 

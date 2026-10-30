@@ -107,9 +107,7 @@ HANDLERS: dict[str, Handler] = {
 
 GREEDY = frozenset({"add", "completion", "edit", "move", "note", "status", "todo"})
 
-SUBJECT = frozenset(
-	{"check", "edit", "forget", "note", "path", "remove", "show", "status"}
-)
+SUBJECT = frozenset({"check", "edit", "forget", "note", "path", "remove", "show", "status"})
 
 ACTIONS: dict[str, frozenset[str]] = {
 	"todo": frozenset(todo.ALIASES),
@@ -118,9 +116,7 @@ ACTIONS: dict[str, frozenset[str]] = {
 	"move": frozenset(relocate.NAMES),
 	"edit": frozenset(commands.FIELD_ALIASES),
 	"forget": frozenset({"list", "l", "show", "clear", "c", "reset", "allow"}),
-	"settings": frozenset(
-		{"edit", "e", "path", "p", "where", "w", "get", "g", "set", "s"}
-	),
+	"settings": frozenset({"edit", "e", "path", "p", "where", "w", "get", "g", "set", "s"}),
 	"daemon": frozenset(
 		{
 			"start",

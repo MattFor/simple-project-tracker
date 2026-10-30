@@ -107,9 +107,7 @@ def test_two_projects_sharing_a_name_are_left_alone(tmp_path: Path):
 	assert not report.merges
 
 
-def test_a_project_found_somewhere_else_is_repointed(
-	tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-):
+def test_a_project_found_somewhere_else_is_repointed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 	watched = tmp_path / "watched"
 	here = living(tmp_path, "watched/moved-here")
 
@@ -123,9 +121,7 @@ def test_a_project_found_somewhere_else_is_repointed(
 	monkeypatch.setattr(doctor, "fingerprint_of", marked)
 
 	data: Projects = {
-		"/gone/old-home": new_project(
-			"/gone/old-home", status="dev", project_id=3, fingerprint="git:abc"
-		)
+		"/gone/old-home": new_project("/gone/old-home", status="dev", project_id=3, fingerprint="git:abc")
 	}
 
 	holder = context(tmp_path, data, daemon__paths=[str(watched)])
@@ -169,9 +165,7 @@ def test_a_living_project_without_marks_is_reported(tmp_path: Path):
 
 
 def test_a_path_no_other_machine_could_place_is_reported(tmp_path: Path):
-	data: Projects = {
-		"/srv/work/alpha": new_project("/srv/work/alpha", status="dev", project_id=1)
-	}
+	data: Projects = {"/srv/work/alpha": new_project("/srv/work/alpha", status="dev", project_id=1)}
 
 	report = examine(context(tmp_path, data), deep=False)
 

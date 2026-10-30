@@ -113,6 +113,46 @@ def git_info(path: str) -> GitInfo | None:
 	return info
 
 
+@dataclass
+class Branch:
+	name: str
+	commit: str
+	subject: str
+	committed: datetime | None = None
+
+
+@lru_cache(maxsize=256)
+def git_branches(path: str, *, remote: bool = False) -> tuple[Branch, ...]:
+	listed = git_output(
+		path,
+		"for-each-ref",
+		"--sort=-committerdate",
+		# Not last, strip() would take an empty one for whitespace
+		"--format=%(refname:short)%1f%(symref)%1f%(objectname:short)%1f%(subject)%1f%(committerdate:iso-strict)",
+		"refs/heads",
+		*(["refs/remotes"] if remote else []),
+	)
+	branches: list[Branch] = []
+
+	for line in (listed or "").splitlines():
+		parts = line.split("\x1f")
+
+		# origin/HEAD only points at another branch
+		if len(parts) != 5 or parts[1]:
+			continue
+
+		name, _, commit, subject, stamp = parts
+
+		try:
+			committed = datetime.fromisoformat(stamp).replace(tzinfo=None)
+		except ValueError:
+			committed = None
+
+		branches.append(Branch(name, commit, subject, committed))
+
+	return tuple(branches)
+
+
 #
 # Manifests
 #

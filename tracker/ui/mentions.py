@@ -77,25 +77,13 @@ def find(projects: Projects, wanted: str) -> tuple[str, Project] | None:
 	if name.isdigit():
 		number = int(name)
 
-		by_id = [
-			(path, project)
-			for path, project in projects.items()
-			if project.get("id") == number
-		]
+		by_id = [(path, project) for path, project in projects.items() if project.get("id") == number]
 
 		return by_id[0] if len(by_id) == 1 else None
 
 	for candidates in (
-		[
-			(path, project)
-			for path, project in projects.items()
-			if Path(path).name.lower() == name
-		],
-		[
-			(path, project)
-			for path, project in projects.items()
-			if Path(path).name.lower().startswith(name)
-		],
+		[(path, project) for path, project in projects.items() if Path(path).name.lower() == name],
+		[(path, project) for path, project in projects.items() if Path(path).name.lower().startswith(name)],
 		[
 			(path, project)
 			for path, project in projects.items()
@@ -196,11 +184,7 @@ def todos_about(path: str, settings: Settings) -> Todos:
 	if not projects:
 		return {}
 
-	return {
-		key: todo
-		for key, todo in _todos(settings).items()
-		if path in about(todo, projects)
-	}
+	return {key: todo for key, todo in _todos(settings).items() if path in about(todo, projects)}
 
 
 def label_of(path: str, project: Project, settings: Settings) -> str:

@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 from tracker.config.settings import Settings
-from tracker.core.inspect import detect_manifest, disk_usage, git_info
+from tracker.core.inspect import detect_manifest, disk_usage, git_branches, git_info
 from tracker.core.models import Project
 from tracker.ui import mentions
 from tracker.ui.ansi import C, markup
@@ -49,6 +49,7 @@ def print_details(
 	tid: int = 0,
 	*,
 	verbose: bool = False,
+	width: int = 70,
 ) -> None:
 	name = Path(path).name
 	status = str(project.get("status", "unknown"))
@@ -103,11 +104,7 @@ def print_details(
 			_field("Commits", f"{info.commits:,}" if info.commits else "0")
 
 			if info.commit:
-				when = (
-					f"  {C.GRAY}({relative_time(info.committed)}){C.RESET}"
-					if info.committed
-					else ""
-				)
+				when = f"  {C.GRAY}({relative_time(info.committed)}){C.RESET}" if info.committed else ""
 
 				_field("Last commit", f"{info.commit} {info.subject}{when}")
 
@@ -126,6 +123,18 @@ def print_details(
 					parts.append(f"{info.untracked} untracked")
 
 				_field("Working tree", ", ".join(parts), "yellow")
+
+			wanted = settings["output"]["branches"]
+			branches = git_branches(path, remote=wanted == "all") if wanted != "current" else ()
+
+			if branches:
+				_section("Branches")
+
+			for branch in branches:
+				when = f"  {C.GRAY}({relative_time(branch.committed)}){C.RESET}" if branch.committed else ""
+				mark = "*" if branch.name == info.branch else " "
+
+				_field(f"{mark} {branch.name}", f"{branch.commit} {branch.subject}{when}")
 
 	todos = mentions.todos_about(path, settings)
 
@@ -146,7 +155,7 @@ def print_details(
 		_section("Note")
 
 		for line in note.splitlines() or [note]:
-			for piece in wrap(markup(line, "GRAY"), 70) or [""]:
+			for piece in wrap(markup(line, "GRAY"), width) or [""]:
 				print(f"  {C.GRAY}{piece}{C.RESET}")
 
 	archived_note = str(project.get("archived_note", "") or "")
@@ -154,7 +163,7 @@ def print_details(
 	if archived_note and archived_note != note:
 		_section("Note before archiving")
 
-		for piece in wrap(markup(archived_note, "GRAY"), 70):
+		for piece in wrap(markup(archived_note, "GRAY"), width):
 			print(f"  {C.GRAY}{piece}{C.RESET}")
 
 	if verbose:

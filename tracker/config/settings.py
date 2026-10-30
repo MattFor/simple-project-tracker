@@ -98,9 +98,7 @@ class Settings:
 		self._problems.extend(self._unknown_keys(loaded or {}))
 
 	@classmethod
-	def merged(
-		cls, data: dict[str, Any] | None, *, path: Path | None = None
-	) -> "Settings":
+	def merged(cls, data: dict[str, Any] | None, *, path: Path | None = None) -> "Settings":
 		data = data or {}
 
 		return cls(

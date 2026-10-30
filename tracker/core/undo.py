@@ -83,14 +83,10 @@ def restore(settings: Settings | None = None) -> tuple[Projects, Projects] | Non
 	)
 
 
-def differences(
-	before: Mapping[str, Any], after: Mapping[str, Any]
-) -> tuple[int, int, int]:
+def differences(before: Mapping[str, Any], after: Mapping[str, Any]) -> tuple[int, int, int]:
 	added = len([key for key in after if key not in before])
 	removed = len([key for key in before if key not in after])
 
-	changed = len(
-		[key for key, entry in after.items() if key in before and before[key] != entry]
-	)
+	changed = len([key for key, entry in after.items() if key in before and before[key] != entry])
 
 	return added, removed, changed

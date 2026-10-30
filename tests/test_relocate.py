@@ -196,6 +196,4 @@ def test_the_command_line_knows_move():
 	assert fuse("mvt") == ("move", "t")
 	assert fuse("mvs") == ("move", "s")
 
-	assert split(["move", "todos", "~/check/list"]) == [
-		("move", ["todos", "~/check/list"])
-	]
+	assert split(["move", "todos", "~/check/list"]) == [("move", ["todos", "~/check/list"])]

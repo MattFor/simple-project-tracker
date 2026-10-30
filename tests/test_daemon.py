@@ -103,9 +103,7 @@ def test_a_scan_labels_only_what_it_scanned(tmp_path: Path):
 
 	data: Projects = {outside: new_project(outside, status="unknown", project_id=9)}
 
-	_ = merge_scan(
-		data, [tmp_path], find_projects(str(tmp_path), settings), True, settings
-	)
+	_ = merge_scan(data, [tmp_path], find_projects(str(tmp_path), settings), True, settings)
 
 	alpha = str(tmp_path / "alpha")
 
@@ -288,9 +286,7 @@ def test_a_project_only_the_other_machine_has_is_left_alone(tmp_path: Path):
 
 	only_there = str(tmp_path / "beta")
 
-	data: Projects = {
-		only_there: new_project(only_there, status="dev", note="theirs", project_id=2)
-	}
+	data: Projects = {only_there: new_project(only_there, status="dev", note="theirs", project_id=2)}
 
 	elsewhere(data[only_there])
 
@@ -319,9 +315,7 @@ def test_losing_a_project_the_other_machine_still_has_does_not_bury_it(
 
 	shutil.rmtree(tmp_path / "beta")
 
-	result = merge_scan(
-		data, [tmp_path], find_projects(str(tmp_path), settings), True, settings
-	)
+	result = merge_scan(data, [tmp_path], find_projects(str(tmp_path), settings), True, settings)
 
 	assert not result.removed
 	assert not data[beta].get("archived", False)
@@ -335,17 +329,13 @@ def test_the_last_machine_to_lose_it_is_the_one_that_buries_it(tmp_path: Path):
 
 	data: Projects = {}
 
-	_ = merge_scan(
-		data, [tmp_path], find_projects(str(tmp_path), settings), True, settings
-	)
+	_ = merge_scan(data, [tmp_path], find_projects(str(tmp_path), settings), True, settings)
 
 	beta = str(tmp_path / "beta")
 
 	shutil.rmtree(tmp_path / "beta")
 
-	result = merge_scan(
-		data, [tmp_path], find_projects(str(tmp_path), settings), True, settings
-	)
+	result = merge_scan(data, [tmp_path], find_projects(str(tmp_path), settings), True, settings)
 
 	assert result.removed == [beta]
 	assert data[beta].get("archived")

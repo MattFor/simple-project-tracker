@@ -27,11 +27,7 @@ def load_view(file: Path, database: str) -> Numbering | None:
 
 	keys_in_view: list[Any] = order
 
-	return {
-		str(key): number
-		for number, key in enumerate(keys_in_view, 1)
-		if isinstance(key, str)
-	}
+	return {str(key): number for number, key in enumerate(keys_in_view, 1) if isinstance(key, str)}
 
 
 def save_view(file: Path, database: str, numbering: Numbering) -> bool:

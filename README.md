@@ -1,7 +1,8 @@
-# simple-project-tracker
+# Simple Project Tracker
 
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![CI](https://github.com/MattFor/simple-project-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/MattFor/simple-project-tracker/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/simple-project-tracker)](https://pypi.org/project/simple-project-tracker/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A simple, but very customizable tracker to keep track of your projects, their states and
 your notes on them.
@@ -137,7 +138,7 @@ When a partial name matches several projects, it's settled by
 The database can live in a Syncthing, Dropbox or git folder.
 
 ```sh
-t mv db ~/sync-folder/data.pkl   # put the database where it syncs
+t mv db ~/syncthing/data.pkl   # put the database where it syncs
 t doctor                         # what is wrong with it
 t fix                            # put that right, undoable
 ```
@@ -194,6 +195,7 @@ or by its initials, with the section shortening the same way: `display.list_limi
 | `todos.sort`, `todos.newest_first`  | How the todo list is ordered                                |
 | `[todos.display]`                   | Display settings the todo list alone uses                   |
 | `output.browser`                    | A bare `t` opens the project browser instead of the list    |
+| `output.branches`                   | `check` lists `local` branches, or `all` with remote ones   |
 
 Notes can colour themselves: `t note 12 {red}broken{/} since friday`.
 
@@ -218,5 +220,4 @@ I wanted to get this project out asap as I really needed it :P
 
 ## License
 
-MIT [LICENSE](LICENSE).
-By MattFor.
+MIT, see [LICENSE](LICENSE). By [MattFor](https://github.com/MattFor).

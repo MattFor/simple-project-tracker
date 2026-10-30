@@ -51,9 +51,7 @@ def label_of(project: Project, settings: Settings, now: datetime | None = None) 
 	if not ordered:
 		return ""
 
-	moment = parse_time(
-		str(project.get("last_touched", "")), settings["display"]["time_format"]
-	)
+	moment = parse_time(str(project.get("last_touched", "")), settings["display"]["time_format"])
 
 	if moment is None:
 		return ordered[-1][1]
@@ -71,18 +69,14 @@ def enabled(settings: Settings) -> bool:
 	return bool(settings["projects"]["auto_status"]) and bool(rules(settings))
 
 
-def automatic_label(
-	project: Project, settings: Settings, now: datetime | None = None
-) -> str:
+def automatic_label(project: Project, settings: Settings, now: datetime | None = None) -> str:
 	if not enabled(settings):
 		return ""
 
 	return label_of(project, settings, now)
 
 
-def apply_labels(
-	projects: Projects, settings: Settings, now: datetime | None = None
-) -> list[tuple[str, str, str]]:
+def apply_labels(projects: Projects, settings: Settings, now: datetime | None = None) -> list[tuple[str, str, str]]:
 	if not enabled(settings):
 		return []
 

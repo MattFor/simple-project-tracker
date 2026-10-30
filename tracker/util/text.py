@@ -60,10 +60,7 @@ def truncate(text: str, width: int) -> str:
 	if length <= width:
 		return text
 
-	if width <= len(_ELLIPSIS):
-		shortened = _cut(text, width)
-	else:
-		shortened = _cut(text, width - len(_ELLIPSIS)) + _ELLIPSIS
+	shortened = _cut(text, width) if width <= len(_ELLIPSIS) else _cut(text, width - len(_ELLIPSIS)) + _ELLIPSIS
 
 	if _ANSI.search(shortened) and not shortened.endswith(_RESET):
 		shortened += _RESET
@@ -102,9 +99,7 @@ def _budgets(lengths: list[int], budget: int) -> list[int]:
 
 	level = 1
 
-	while level < max(lengths, default=1) and (
-		sum(min(length, level + 1) for length in lengths) <= budget
-	):
+	while level < max(lengths, default=1) and (sum(min(length, level + 1) for length in lengths) <= budget):
 		level += 1
 
 	kept = [min(length, level) for length in lengths]
@@ -141,10 +136,7 @@ def abbreviate(name: str, width: int) -> str:
 
 	kept = _budgets(lengths, budget)
 
-	return "".join(
-		word[:keep] + separator
-		for (word, separator), keep in zip(parts, kept, strict=True)
-	).rstrip(_TRIM)
+	return "".join(word[:keep] + separator for (word, separator), keep in zip(parts, kept, strict=True)).rstrip(_TRIM)
 
 
 def shorten(name: str, width: int, continuator: str = _ELLIPSIS) -> str:
@@ -236,9 +228,7 @@ SHORT_UNITS = {
 }
 
 
-def relative_time(
-	moment: datetime, now: datetime | None = None, *, short: bool = False
-) -> str:
+def relative_time(moment: datetime, now: datetime | None = None, *, short: bool = False) -> str:
 	now = now or datetime.now()
 
 	seconds = (now - moment).total_seconds()

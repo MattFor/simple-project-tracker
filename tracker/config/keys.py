@@ -43,9 +43,7 @@ def _match(query: str, name: str) -> int | None:
 	wanted = _words(query)
 	words = _words(name)
 
-	if len(wanted) == len(words) and all(
-		word.startswith(piece) for piece, word in zip(wanted, words, strict=True)
-	):
+	if len(wanted) == len(words) and all(word.startswith(piece) for piece, word in zip(wanted, words, strict=True)):
 		return 2
 
 	if _initials(name) == query:

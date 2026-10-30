@@ -18,10 +18,7 @@ def isolate(tmp_path: Path) -> None:
 
 
 def names(numbering: dict[str, int]) -> list[str]:
-	return [
-		path.rsplit("/", 1)[-1]
-		for path, _ in sorted(numbering.items(), key=lambda item: item[1])
-	]
+	return [path.rsplit("/", 1)[-1] for path, _ in sorted(numbering.items(), key=lambda item: item[1])]
 
 
 def selected(projects: Projects) -> list[str]:
@@ -51,9 +48,7 @@ def test_a_listing_pins_the_numbering(tmp_path: Path):
 	# Something reorders the projects behind our back D:
 	projects["/home/user/code/gamma"]["last_touched"] = "2027-01-01 00:00:00"
 
-	sorted_now = make_settings(
-		sorting__by="last_touched", sorting__direction="descending"
-	)
+	sorted_now = make_settings(sorting__by="last_touched", sorting__direction="descending")
 
 	assert names(current_numbering(projects, sorted_now)) == ["gamma", "beta", "alpha"]
 	assert names(temporary_ids(projects, sorted_now)) == ["alpha", "beta", "gamma"]
@@ -170,9 +165,7 @@ def test_a_limited_listing_only_numbers_the_rows_it_printed(tmp_path: Path):
 
 	projects = make_projects(*SAMPLE)
 
-	settings = make_settings(
-		sorting__by="name", sorting__direction="ascending", display__list_limit=2
-	)
+	settings = make_settings(sorting__by="name", sorting__direction="ascending", display__list_limit=2)
 
 	print_projects(projects, settings)
 

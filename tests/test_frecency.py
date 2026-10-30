@@ -135,9 +135,9 @@ def test_an_unknowable_clash_is_still_reported():
 
 def test_a_prefix_match_is_preferred_before_scoring():
 	projects = sample()
-	projects["/code/not-relaxy-at-all"] = make_projects(
-		("/code/not-relaxy-at-all", "dev", "2026-08-01 00:00:00", "")
-	)["/code/not-relaxy-at-all"]
+	projects["/code/not-relaxy-at-all"] = make_projects(("/code/not-relaxy-at-all", "dev", "2026-08-01 00:00:00", ""))[
+		"/code/not-relaxy-at-all"
+	]
 
 	projects["/code/relaxy-public"]["uses"] = 3
 	projects["/code/relaxy-public"]["last_used"] = stamp(timedelta(minutes=1))

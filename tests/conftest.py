@@ -46,6 +46,4 @@ def plain_output() -> Iterator[None]:
 	ansi.C.set_enabled(False)
 
 
-_ = os.environ.setdefault(
-	"TRACKER_VIEW", os.path.join(os.path.realpath(tempfile.mkdtemp()), "view.json")
-)
+_ = os.environ.setdefault("TRACKER_VIEW", os.path.join(os.path.realpath(tempfile.mkdtemp()), "view.json"))

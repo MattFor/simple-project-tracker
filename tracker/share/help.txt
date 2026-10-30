@@ -707,7 +707,7 @@
 {BOLD}Sync:{RESET}
    {GRAY}The database can live in a Syncthing, Dropbox or git folder.{RESET}
 
-      {GREEN}tracker move db ~/sync-folder/data.pkl{RESET}
+      {GREEN}tracker move db ~/syncthing/data.pkl{RESET}
 
    {GRAY}Every path is stored portable and expanded as it is read. Home{RESET}
    {GRAY}needs no configuration and travels as {GREEN}~{GRAY}. Anything outside it is named:{RESET}

@@ -176,11 +176,7 @@ def vanished(path: str, project: Project) -> bool:
 
 	stored = str(project.get("identity", "") or "")
 
-	if (
-		stored
-		and is_local(stored)
-		and split_identity(identity_of(path))[1] == split_identity(stored)[1]
-	):
+	if stored and is_local(stored) and split_identity(identity_of(path))[1] == split_identity(stored)[1]:
 		return False
 
 	fingerprint = str(project.get("fingerprint", "") or "")
@@ -254,11 +250,7 @@ def _pair(
 		if len(candidates) != 1:
 			continue
 
-		owners = [
-			path
-			for path in gone
-			if path not in moves and leaving(path, data[path]) == value
-		]
+		owners = [path for path in gone if path not in moves and leaving(path, data[path]) == value]
 
 		if len(owners) != 1:
 			continue
@@ -275,9 +267,7 @@ PAIRINGS: tuple[tuple[Key, Key], ...] = (
 )
 
 
-def detect_moves(
-	data: Projects, appeared: Iterable[str], gone: Iterable[str]
-) -> dict[str, str]:
+def detect_moves(data: Projects, appeared: Iterable[str], gone: Iterable[str]) -> dict[str, str]:
 	arrived = [path for path in appeared if path in data]
 	missing = [path for path in gone if path in data]
 
@@ -329,9 +319,7 @@ def carry_over(previous: Project, current: Project) -> None:
 	_ = current.pop("deleted_at", None)
 
 
-def apply_moves(
-	data: Projects, appeared: Iterable[str], gone: Iterable[str]
-) -> list[tuple[str, str]]:
+def apply_moves(data: Projects, appeared: Iterable[str], gone: Iterable[str]) -> list[tuple[str, str]]:
 	moves = detect_moves(data, appeared, gone)
 
 	for old, new in moves.items():

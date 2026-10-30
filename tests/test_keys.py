@@ -82,9 +82,7 @@ def test_a_scoped_display_answers_to_every_display_name():
 	assert resolved("todos.display.list_lim") == "todos.display.list_limit"
 	assert resolved("t.d.np") == "todos.display.note_position"
 
-	assert (
-		resolved("todos.display.status_colours.dev") == "todos.display.status_colours.dev"
-	)
+	assert resolved("todos.display.status_colours.dev") == "todos.display.status_colours.dev"
 
 
 def test_a_scoped_display_reports_what_a_name_could_mean():

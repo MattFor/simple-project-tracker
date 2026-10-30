@@ -19,9 +19,7 @@ def pretend_installed(monkeypatch: Patcher, package: Path) -> None:
 	monkeypatch.setattr(paths, "_recovered", {})
 
 
-def test_the_package_is_found_again_after_its_directory_is_renamed(
-	tmp_path: Path, monkeypatch: Patcher
-):
+def test_the_package_is_found_again_after_its_directory_is_renamed(tmp_path: Path, monkeypatch: Patcher):
 	root = tmp_path / "tracker"
 	package = source_tree(root)
 
@@ -54,9 +52,7 @@ def test_the_package_is_found_again_from_inside_it(tmp_path: Path, monkeypatch: 
 	assert paths.package_root() == renamed / "tracker"
 
 
-def test_a_package_that_really_vanished_keeps_the_path_it_was_installed_at(
-	tmp_path: Path, monkeypatch: Patcher
-):
+def test_a_package_that_really_vanished_keeps_the_path_it_was_installed_at(tmp_path: Path, monkeypatch: Patcher):
 	root = tmp_path / "tracker"
 	package = source_tree(root)
 

@@ -56,6 +56,8 @@ NUMBER_PREFERENCES = ("ask", "id", "tid")
 
 NAME_STYLES = ("full", "truncate", "abbreviate")
 
+BRANCHES = ("current", "local", "all")
+
 IGNORED_DIRECTORIES = [
 	".git",
 	".venv",
@@ -163,6 +165,7 @@ def defaults() -> dict[str, Any]:
 			"compact": False,
 			"absolute_paths": True,
 			"browser": False,
+			"branches": "current",
 		},
 		"todos": {
 			"display": {},
@@ -208,6 +211,7 @@ CHOICES: dict[str, tuple[str, ...]] = {
 	"display.name_style": NAME_STYLES,
 	"display.note_position": NOTE_POSITIONS,
 	"display.relative_style": RELATIVE_STYLES,
+	"output.branches": BRANCHES,
 	"sorting.by": SORT_KEYS,
 	"sorting.direction": SORT_DIRECTIONS,
 	"todos.sort": TODO_SORT_KEYS,

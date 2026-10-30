@@ -110,9 +110,7 @@ def _carry(current: Path, destination: Path) -> list[str]:
 		if not beside.is_file():
 			continue
 
-		_ = shutil.move(
-			str(beside), str(destination.with_name(destination.name + suffix))
-		)
+		_ = shutil.move(str(beside), str(destination.with_name(destination.name + suffix)))
 
 		carried.append(beside.name)
 

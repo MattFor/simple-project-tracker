@@ -87,9 +87,7 @@ def format_fields(template: str) -> list[str]:
 	return [match.group(2) or match.group(4) for match in _PLACEHOLDER.finditer(template)]
 
 
-def parse_format(
-	template: str, fields: Mapping[str, str] = FIELD_HEADERS
-) -> list[Segment]:
+def parse_format(template: str, fields: Mapping[str, str] = FIELD_HEADERS) -> list[Segment]:
 	segments: list[Segment] = []
 	index = 0
 
@@ -342,9 +340,7 @@ def render_table(
 
 		return "".join(pieces)
 
-	note_space = (
-		available - sum(widths) - literals - len(separator) if available else 10**6
-	)
+	note_space = available - sum(widths) - literals - len(separator) if available else 10**6
 
 	trailing = show_notes and "note" not in fields
 
@@ -366,11 +362,7 @@ def render_table(
 		notes[key] = (note, inline)
 
 	inline_width = max(
-		(
-			min(visible_length(note), note_space)
-			for note, inline in notes.values()
-			if inline
-		),
+		(min(visible_length(note), note_space) for note, inline in notes.values() if inline),
 		default=0,
 	)
 
@@ -380,9 +372,7 @@ def render_table(
 	if shortened and shortened[-1][0] == "literal":
 		shortened = shortened[:-1]
 
-	closing = segments[-1][0] == "field" and any(
-		kind == "field" for kind, _, _ in shortened
-	)
+	closing = segments[-1][0] == "field" and any(kind == "field" for kind, _, _ in shortened)
 
 	rendered: list[str] = []
 
@@ -414,9 +404,7 @@ def render_table(
 
 		line = compose(
 			values,
-			lambda value, index, owner=key: paint(
-				owner, index, pad(value, widths[index], aligns[index] == ">")
-			),
+			lambda value, index, owner=key: paint(owner, index, pad(value, widths[index], aligns[index] == ">")),
 			shortened if empty else None,
 		)
 
@@ -454,11 +442,7 @@ def _shrink(
 		if overflow <= 0:
 			return
 
-		candidates = [
-			index
-			for index, field in enumerate(fields)
-			if field in wanted and widths[index] > MINIMUM_COLUMN
-		]
+		candidates = [index for index, field in enumerate(fields) if field in wanted and widths[index] > MINIMUM_COLUMN]
 
 		if not candidates:
 			return
@@ -495,10 +479,7 @@ def render_rows(
 	lines = [
 		(
 			path,
-			[
-				cell(path, project, field, settings, temporary_ids.get(path, 0))
-				for field in fields
-			],
+			[cell(path, project, field, settings, temporary_ids.get(path, 0)) for field in fields],
 			note_text(project, "GRAY"),
 		)
 		for path, project in items
@@ -513,14 +494,8 @@ def render_rows(
 		FIELD_HEADERS,
 		settings,
 		paint,
-		show_headers=(
-			bool(settings["display"]["show_headers"])
-			if show_headers is None
-			else show_headers
-		),
-		show_notes=(
-			bool(settings["display"]["show_notes"]) if show_notes is None else show_notes
-		),
+		show_headers=(bool(settings["display"]["show_headers"]) if show_headers is None else show_headers),
+		show_notes=(bool(settings["display"]["show_notes"]) if show_notes is None else show_notes),
 		prefix=prefix,
 		width=terminal_width(settings) if width is None else width,
 	)

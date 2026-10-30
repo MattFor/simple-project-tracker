@@ -86,9 +86,7 @@ def frecency(project: Project, settings: Settings, now: datetime | None = None) 
 	if rank < 1:
 		return 0.0
 
-	moment = parse_time(
-		str(project.get("last_used", "")), settings["display"]["time_format"]
-	)
+	moment = parse_time(str(project.get("last_used", "")), settings["display"]["time_format"])
 
 	if moment is None:
 		return rank * 0.25
@@ -121,10 +119,7 @@ def best_match(
 	sources = ("zoxide", "frecency") if source == "zoxide" else ("frecency",)
 
 	for attempt in sources:
-		scored = [
-			(score_of(path, project, settings, attempt, now), path, project)
-			for path, project in matches
-		]
+		scored = [(score_of(path, project, settings, attempt, now), path, project) for path, project in matches]
 
 		scored.sort(key=lambda entry: entry[0], reverse=True)
 

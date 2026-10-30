@@ -93,9 +93,7 @@ ALIASES = {
 	"h": "help",
 }
 
-TAKES_SELECTION = frozenset(
-	{"check", "done", "edit", "note", "remove", "rename", "reopen", "status"}
-)
+TAKES_SELECTION = frozenset({"check", "done", "edit", "note", "remove", "rename", "reopen", "status"})
 
 # The words that end a new todo's name and start its fields, as in add milk n oat
 ADD_FIELDS = frozenset({"n", "nt", "s", "st"})
@@ -165,18 +163,7 @@ class TodoKind(Kind):
 		print_todo(entry, context.settings, tid)
 
 	def set(self, context: Context, entry: Any, name: str, value: str) -> None:
-		set_field(entry, name, value)
-
-		moment = stamp(context.settings)
-		entry["updated"] = moment
-
-		if name != "status":
-			return
-
-		if value.strip().lower() == done_status(context.settings):
-			entry["done_at"] = moment
-		else:
-			_ = entry.pop("done_at", None)
+		set_field(entry, name, value, context.settings)
 
 	def listing(self, context: Context, args: list[str]) -> int:
 		return action_list(context, args)
@@ -215,11 +202,7 @@ def action_list(context: Context, args: list[str]) -> int:
 
 def action_add(context: Context, args: list[str]) -> int:
 	at = next(
-		(
-			index
-			for index, token in enumerate(args)
-			if token.lower().strip("-") in ADD_FIELDS
-		),
+		(index for index, token in enumerate(args) if token.lower().strip("-") in ADD_FIELDS),
 		len(args),
 	)
 
@@ -294,9 +277,7 @@ def action_clear(context: Context, args: list[str]) -> int:
 
 def action_mark(context: Context, args: list[str], status: str) -> int:
 	if not args:
-		return TODO.missing(
-			"done" if status == done_status(context.settings) else "reopen"
-		)
+		return TODO.missing("done" if status == done_status(context.settings) else "reopen")
 
 	todos = TODO.load(context)
 	selected = TODO.chosen(context, todos, args, "status")
@@ -383,11 +364,7 @@ def command_todo(context: Context, args: list[str]) -> int:
 	# A td may come before its action, and every word up to it is its name
 	if not action:
 		at = next(
-			(
-				index
-				for index, token in enumerate(args)
-				if action_of(token) in TAKES_SELECTION
-			),
+			(index for index, token in enumerate(args) if action_of(token) in TAKES_SELECTION),
 			0,
 		)
 
@@ -397,11 +374,7 @@ def command_todo(context: Context, args: list[str]) -> int:
 				[" ".join(args[:at]), *args[at + 1 :]],
 			)
 
-	if (
-		action in ("note", "status")
-		and len(arguments) > 1
-		and offer_new(context, arguments[0])
-	):
+	if action in ("note", "status") and len(arguments) > 1 and offer_new(context, arguments[0]):
 		mark = "n" if action == "note" else "s"
 
 		return action_add(context, [arguments[0], mark, *arguments[1:]])

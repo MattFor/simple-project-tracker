@@ -73,9 +73,7 @@ def status_counts(entries: Mapping[str, Entry]) -> dict[str, int]:
 #
 
 
-def current_numbering(
-	entries: Mapping[str, E], settings: Settings, space: Space
-) -> dict[str, int]:
+def current_numbering(entries: Mapping[str, E], settings: Settings, space: Space) -> dict[str, int]:
 	shown = space.visible(entries, settings) if space.visible else entries
 
 	return {key: tid for tid, (key, _) in enumerate(space.sort(shown, settings), 1)}
@@ -91,17 +89,11 @@ def pin_numbering(keys: list[str], settings: Settings, space: Space) -> dict[str
 	return numbering
 
 
-def pin_entries(
-	entries: Mapping[str, E], settings: Settings, space: Space
-) -> dict[str, int]:
-	return pin_numbering(
-		[key for key, _ in space.sort(entries, settings)], settings, space
-	)
+def pin_entries(entries: Mapping[str, E], settings: Settings, space: Space) -> dict[str, int]:
+	return pin_numbering([key for key, _ in space.sort(entries, settings)], settings, space)
 
 
-def temporary_ids(
-	entries: Mapping[str, E], settings: Settings, space: Space
-) -> dict[str, int]:
+def temporary_ids(entries: Mapping[str, E], settings: Settings, space: Space) -> dict[str, int]:
 	from tracker.core.view import load_view
 
 	stored = load_view(*space.view(settings))
@@ -151,16 +143,12 @@ def parse_filter(token: str) -> str | None:
 	return f"{action}{_FILTER_NAMES[kind]}:{value}"
 
 
-def _matching(
-	entries: Mapping[str, E], filter_type: str, value: str, space: Space, quiet: bool
-) -> set[str] | None:
+def _matching(entries: Mapping[str, E], filter_type: str, value: str, space: Space, quiet: bool) -> set[str] | None:
 	if filter_type == "m":
 		needle = value.lower()
 
 		return {
-			key
-			for key, entry in entries.items()
-			if any(needle in text.lower() for text in haystack(key, entry, space))
+			key for key, entry in entries.items() if any(needle in text.lower() for text in haystack(key, entry, space))
 		}
 
 	if filter_type == "s":
@@ -176,16 +164,10 @@ def _matching(
 
 		return None
 
-	return {
-		key
-		for key, entry in entries.items()
-		if pattern.search(space.texts(key, entry)[-1])
-	}
+	return {key for key, entry in entries.items() if pattern.search(space.texts(key, entry)[-1])}
 
 
-def filter_entries(
-	entries: dict[str, E], filters: list[str], space: Space, *, quiet: bool = False
-) -> dict[str, E]:
+def filter_entries(entries: dict[str, E], filters: list[str], space: Space, *, quiet: bool = False) -> dict[str, E]:
 	if not filters:
 		return entries
 
@@ -244,20 +226,14 @@ def search_entries(entries: dict[str, E], search: str, space: Space) -> dict[str
 	}
 
 
-def regex_entries(
-	entries: dict[str, E], expression: str, space: Space
-) -> dict[str, E] | None:
+def regex_entries(entries: dict[str, E], expression: str, space: Space) -> dict[str, E] | None:
 	try:
 		pattern = re.compile(expression, re.IGNORECASE)
 	except re.error as error:
 		print(f"[ERROR] invalid regex: {error}")
 		return None
 
-	return {
-		key: entry
-		for key, entry in entries.items()
-		if pattern.search(space.texts(key, entry)[-1])
-	}
+	return {key: entry for key, entry in entries.items() if pattern.search(space.texts(key, entry)[-1])}
 
 
 #
@@ -317,19 +293,13 @@ def resolve_selection(
 			print(message)
 
 	def show(rows: Rows, renumber: bool = False) -> None:
-		shown = (
-			pin_numbering([key for key, _ in rows], settings, space)
-			if renumber
-			else numbering
-		)
+		shown = pin_numbering([key for key, _ in rows], settings, space) if renumber else numbering
 
 		for line in space.rows(rows, settings, shown):
 			report(line)
 
 	def find_number(number: int, source: str = "any") -> list[tuple[str, E]]:
-		by_id = [
-			(key, entry) for key, entry in entries.items() if entry.get("id") == number
-		]
+		by_id = [(key, entry) for key, entry in entries.items() if entry.get("id") == number]
 
 		key = by_tid.get(number)
 		by_temporary = [(key, entries[key])] if key is not None else []
@@ -433,9 +403,7 @@ def resolve_selection(
 	def select_status(value: str) -> bool:
 		wanted = status_values(value)
 
-		matched = {
-			key: entry for key, entry in entries.items() if status_matches(entry, wanted)
-		}
+		matched = {key: entry for key, entry in entries.items() if status_matches(entry, wanted)}
 
 		if not matched:
 			report(f"[ERROR] no {space.noun} has the status '{value}'")
@@ -474,20 +442,14 @@ def resolve_selection(
 		for position in range(max((len(texts) for _, _, texts in known), default=0)):
 			# noinspection shadowing-names
 			exact = [
-				(key, entry)
-				for key, entry, texts in known
-				if position < len(texts) and texts[position] == identifier
+				(key, entry) for key, entry, texts in known if position < len(texts) and texts[position] == identifier
 			]
 
 			if len(exact) == 1:
 				selected[exact[0][0]] = exact[0][1]
 				return True
 
-		matched = [
-			(key, entry, texts)
-			for key, entry, texts in known
-			if any(identifier in text for text in texts)
-		]
+		matched = [(key, entry, texts) for key, entry, texts in known if any(identifier in text for text in texts)]
 
 		found = [(key, entry) for key, entry, _ in matched]
 
@@ -502,11 +464,7 @@ def resolve_selection(
 			return True
 
 		# noinspection shadowing-names
-		prefixed = [
-			(key, entry)
-			for key, entry, texts in matched
-			if texts[-1].startswith(identifier)
-		]
+		prefixed = [(key, entry) for key, entry, texts in matched if texts[-1].startswith(identifier)]
 
 		if preference == "starts_with":
 			if len(prefixed) == 1:

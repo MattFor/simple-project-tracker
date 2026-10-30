@@ -35,9 +35,7 @@ def test_home_comes_back_as_this_machine_s_home(tmp_path: Path):
 
 	settings = make_settings()
 
-	assert portable.expand("~/code/alpha", portable.roots(settings)) == str(
-		Path.home() / "code" / "alpha"
-	)
+	assert portable.expand("~/code/alpha", portable.roots(settings)) == str(Path.home() / "code" / "alpha")
 
 
 def test_a_named_root_beats_home_when_it_is_more_specific(tmp_path: Path):
@@ -132,11 +130,7 @@ def test_a_database_written_elsewhere_lands_where_this_machine_keeps_it(
 
 	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
 
-	written = {
-		"@work/alpha": new_project(
-			"@work/alpha", status="dev", note="shared note", project_id=4
-		)
-	}
+	written = {"@work/alpha": new_project("@work/alpha", status="dev", note="shared note", project_id=4)}
 
 	assert save_pkl(tmp_path / "data.pkl", written)
 

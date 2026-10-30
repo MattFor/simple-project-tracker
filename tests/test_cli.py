@@ -16,9 +16,7 @@ def test_free_text_commands_swallow_the_rest():
 		("add", ["~/code", "active", "a note with list in it"])
 	]
 
-	assert split(["edit", "3", "note", "check this remove that"]) == [
-		("edit", ["3", "note", "check this remove that"])
-	]
+	assert split(["edit", "3", "note", "check this remove that"]) == [("edit", ["3", "note", "check this remove that"])]
 
 
 def test_dashed_aliases_are_accepted():
@@ -59,9 +57,7 @@ def test_flags_inside_a_note_stay_in_the_note():
 def test_a_project_may_come_before_its_command():
 	assert split(["tracker", "check"]) == [("check", ["tracker"])]
 	assert split(["12", "path"]) == [("path", ["12"])]
-	assert split(["12", "edit", "status", "active"]) == [
-		("edit", ["12", "status", "active"])
-	]
+	assert split(["12", "edit", "status", "active"]) == [("edit", ["12", "status", "active"])]
 
 
 def test_a_project_before_a_subjectless_command_stays_a_lookup():
@@ -70,9 +66,7 @@ def test_a_project_before_a_subjectless_command_stays_a_lookup():
 
 def test_note_and_status_are_commands_of_their_own():
 	assert split(["note", "12", "review sunday"]) == [("note", ["12", "review sunday"])]
-	assert split(["12", "n", "review", "sunday"]) == [
-		("note", ["12", "review", "sunday"])
-	]
+	assert split(["12", "n", "review", "sunday"]) == [("note", ["12", "review", "sunday"])]
 	assert split(["12", "st", "blocked"]) == [("status", ["12", "blocked"])]
 
 
@@ -92,9 +86,7 @@ def test_flags_inside_a_bare_note_stay_in_the_note():
 def test_sub_actions_are_not_mistaken_for_commands():
 	assert split(["settings", "path"]) == [("settings", ["path"])]
 	assert split(["settings", "edit"]) == [("settings", ["edit"])]
-	assert split(["settings", "set", "sorting.by", "name"]) == [
-		("settings", ["set", "sorting.by", "name"])
-	]
+	assert split(["settings", "set", "sorting.by", "name"]) == [("settings", ["set", "sorting.by", "name"])]
 	assert split(["daemon", "status"]) == [("daemon", ["status"])]
 	assert split(["daemon", "restart"]) == [("daemon", ["restart"])]
 	assert split(["daemon", "log", "40"]) == [("daemon", ["log", "40"])]
@@ -109,9 +101,7 @@ def test_a_double_dash_ends_the_options():
 
 
 def test_a_double_dash_stops_command_matching():
-	assert split(["note", "3", "--", "check", "the", "list"]) == [
-		("note", ["3", "check", "the", "list"])
-	]
+	assert split(["note", "3", "--", "check", "the", "list"]) == [("note", ["3", "check", "the", "list"])]
 
 	assert split(["check", "--", "list"]) == [("check", ["list"])]
 
@@ -163,9 +153,7 @@ def test_a_greedy_command_still_answers_a_bare_help():
 def test_help_inside_free_text_stays_free_text():
 	assert split(["note", "5", "help", "me"]) == [("note", ["5", "help", "me"])]
 	assert split(["note", "5", "--", "help"]) == [("note", ["5", "help"])]
-	assert split(["add", "~/code", "todo", "help"]) == [
-		("add", ["~/code", "todo", "help"])
-	]
+	assert split(["add", "~/code", "todo", "help"]) == [("add", ["~/code", "todo", "help"])]
 
 
 def test_help_takes_a_topic_that_is_not_a_command():
@@ -180,9 +168,7 @@ def test_usage_is_only_recorded_when_it_is_turned_on():
 	for enabled in (True, False):
 		projects = make_projects(*SAMPLE)
 
-		context = Context(
-			settings=make_settings(projects__track_usage=enabled), data=projects
-		)
+		context = Context(settings=make_settings(projects__track_usage=enabled), data=projects)
 
 		assert context.mark_used(projects) is enabled
 		assert context.pending is enabled
@@ -229,9 +215,7 @@ def test_the_decorator_saves_what_a_command_used(tmp_path: Path):
 def test_editing_only_a_field_fuses_into_edit():
 	assert split(["11", "es", "shelf"]) == [("edit", ["11", "s", "shelf"])]
 	assert split(["t:11", "es", "stable"]) == [("edit", ["t:11", "s", "stable"])]
-	assert split(["11", "en", "review", "later"]) == [
-		("edit", ["11", "n", "review", "later"])
-	]
+	assert split(["11", "en", "review", "later"]) == [("edit", ["11", "n", "review", "later"])]
 	assert fuse("est") == ("edit", "st")
 
 
@@ -241,9 +225,7 @@ def test_a_fused_edit_keeps_its_free_text():
 	assert args == ["11", "en", "yes", "verbose"]
 	assert flags["verbose"] is False
 
-	assert split(["11", "en", "check", "the", "list"]) == [
-		("edit", ["11", "n", "check", "the", "list"])
-	]
+	assert split(["11", "en", "check", "the", "list"]) == [("edit", ["11", "n", "check", "the", "list"])]
 
 
 def test_all_asks_a_listing_for_everything():
@@ -254,9 +236,7 @@ def test_all_asks_a_listing_for_everything():
 
 def test_set_status_and_set_note_have_their_own_short_forms():
 	assert split(["12", "ss", "blocked"]) == [("status", ["12", "blocked"])]
-	assert split(["12", "sn", "review", "sunday"]) == [
-		("note", ["12", "review", "sunday"])
-	]
+	assert split(["12", "sn", "review", "sunday"]) == [("note", ["12", "review", "sunday"])]
 	assert split(["ss", "12", "blocked"]) == [("status", ["12", "blocked"])]
 
 

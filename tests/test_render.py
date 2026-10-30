@@ -104,9 +104,7 @@ def test_no_rows_renders_nothing():
 
 
 def test_multi_line_notes_are_flattened_when_inline():
-	projects = make_projects(
-		("/code/a", "x", "2026-01-01 00:00:00", "line one\nline two")
-	)
+	projects = make_projects(("/code/a", "x", "2026-01-01 00:00:00", "line one\nline two"))
 
 	settings = make_settings(display__columns=["name"], display__show_headers=False)
 
@@ -125,9 +123,7 @@ def test_text_helpers():
 
 
 def test_a_format_string_replaces_the_columns():
-	lines = rows(
-		120, display__format="$tid. $name [$status]", display__show_headers=False
-	)
+	lines = rows(120, display__format="$tid. $name [$status]", display__show_headers=False)
 
 	assert lines[0].startswith("1. alpha [current")
 
@@ -229,9 +225,7 @@ def test_the_last_used_column_falls_back_to_never():
 
 	projects["/code/alpha"]["last_used"] = "2026-01-02 00:00:00"
 
-	settings = make_settings(
-		display__columns=["name", "last_used"], display__show_headers=False
-	)
+	settings = make_settings(display__columns=["name", "last_used"], display__show_headers=False)
 
 	lines = render_rows(projects.items(), settings, width=80)
 
@@ -242,9 +236,7 @@ def test_the_last_used_column_falls_back_to_never():
 def test_a_note_may_colour_itself():
 	from tracker.ui.ansi import C, markup
 
-	projects = make_projects(
-		("/code/alpha", "dev", "2026-01-01 00:00:00", "{red}broken{/} since friday")
-	)
+	projects = make_projects(("/code/alpha", "dev", "2026-01-01 00:00:00", "{red}broken{/} since friday"))
 
 	settings = make_settings(display__columns=["name"], display__show_headers=False)
 
@@ -267,9 +259,7 @@ def test_a_note_may_colour_itself():
 
 
 def test_an_unknown_brace_word_stays_in_the_note():
-	projects = make_projects(
-		("/code/alpha", "dev", "2026-01-01 00:00:00", "wait for {thing}")
-	)
+	projects = make_projects(("/code/alpha", "dev", "2026-01-01 00:00:00", "wait for {thing}"))
 
 	settings = make_settings(display__columns=["name"], display__show_headers=False)
 
@@ -280,9 +270,7 @@ def test_a_coloured_note_still_fits_the_terminal():
 	from tracker.ui.ansi import C
 	from tracker.util.text import visible_length
 
-	projects = make_projects(
-		("/code/alpha", "dev", "2026-01-01 00:00:00", "{y}" + "long note " * 10)
-	)
+	projects = make_projects(("/code/alpha", "dev", "2026-01-01 00:00:00", "{y}" + "long note " * 10))
 
 	settings = make_settings(
 		display__columns=["name"],

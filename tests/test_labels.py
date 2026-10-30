@@ -89,9 +89,7 @@ def test_the_rules_can_be_replaced():
 		projects__auto_status_rules={"hot": 1, "cold": 0},
 	)
 
-	assert apply_labels(projects, settings, NOW) == [
-		("/code/project1", "unknown", "cold")
-	]
+	assert apply_labels(projects, settings, NOW) == [("/code/project1", "unknown", "cold")]
 
 
 def test_a_new_project_is_labelled_while_it_is_discovered(tmp_path: Path):
@@ -138,6 +136,4 @@ def test_an_ignored_file_pattern_reaches_a_scan(tmp_path: Path):
 
 	found = find_projects(str(tmp_path), settings)
 
-	assert found[str(project)]["last_touched"] == datetime.fromtimestamp(
-		1_000_000
-	).strftime("%Y-%m-%d %H:%M:%S")
+	assert found[str(project)]["last_touched"] == datetime.fromtimestamp(1_000_000).strftime("%Y-%m-%d %H:%M:%S")

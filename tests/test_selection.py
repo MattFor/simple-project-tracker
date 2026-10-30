@@ -63,9 +63,7 @@ def test_select_by_name_and_path():
 	settings = make_settings()
 
 	assert names(select_projects(sample(), settings, ["beta"])) == ["beta"]
-	assert names(select_projects(sample(), settings, ["/home/user/code/beta"])) == [
-		"beta"
-	]
+	assert names(select_projects(sample(), settings, ["/home/user/code/beta"])) == ["beta"]
 
 
 def test_select_inclusive_range():
@@ -201,9 +199,7 @@ def test_unresolved_selectors_are_reported():
 	projects = sample()
 	settings = make_settings()
 
-	selected, unmatched = resolve_selection(
-		projects, settings, ["beta", "nonsense"], quiet=True
-	)
+	selected, unmatched = resolve_selection(projects, settings, ["beta", "nonsense"], quiet=True)
 
 	assert names(selected) == ["beta"]
 	assert unmatched == ["nonsense"]
@@ -277,9 +273,7 @@ def test_an_unknown_status_selects_nothing():
 	projects = status_sample()
 	settings = make_settings()
 
-	selected, unmatched = resolve_selection(
-		projects, settings, ["s:nonsense"], quiet=True
-	)
+	selected, unmatched = resolve_selection(projects, settings, ["s:nonsense"], quiet=True)
 
 	assert not selected
 	assert unmatched == ["s:nonsense"]
@@ -466,10 +460,7 @@ def test_a_colon_selector_never_reads_as_a_status():
 
 
 def numbered(*entries: tuple[str, int]) -> Projects:
-	return {
-		path: new_project(path, status="dev", project_id=number)
-		for path, number in entries
-	}
+	return {path: new_project(path, status="dev", project_id=number) for path, number in entries}
 
 
 def test_a_bare_number_still_finds_an_id_the_view_cannot_number():

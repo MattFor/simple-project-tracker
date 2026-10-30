@@ -153,9 +153,7 @@ def shareable(path: str, known: Roots | None = None) -> bool:
 #
 
 
-def _rekey(
-	data: Projects, settings: Settings | None, convert: Any, copy: bool
-) -> Projects:
+def _rekey(data: Projects, settings: Settings | None, convert: Any, copy: bool) -> Projects:
 	if not enabled(settings):
 		return data
 

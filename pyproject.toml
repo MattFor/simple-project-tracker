@@ -57,13 +57,11 @@ tracker = ["py.typed", "share/*.toml", "share/*.txt", "share/completion.*"]
 dev = ["ruff", "basedpyright", "pytest>=9.0.2"]
 
 [tool.ruff]
-line-length = 90
-indent-width = 4
+line-length = 120
 
 [tool.ruff.format]
 indent-style = "tab"
-quote-style = "double"
-line-ending = "auto"
+quote-style = "preserve"
 skip-magic-trailing-comma = false
 
 [tool.ruff.lint]
@@ -83,9 +81,6 @@ select = [
   "FURB", # modernisation
   "RUF",  # ruff specific
 ]
-
-[tool.ruff.lint.pycodestyle]
-max-line-length = 90
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

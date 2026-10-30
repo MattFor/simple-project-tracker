@@ -233,21 +233,15 @@ def examine(context: Context, *, deep: bool = True) -> Report:
 		and not portable.portable(path)
 	)
 
-	report.unmarked = sorted(
-		path for path, project in living.items() if needs_marking(project)
-	)
+	report.unmarked = sorted(path for path, project in living.items() if needs_marking(project))
 
 	if portable.enabled(settings):
 		roots = portable.roots(settings)
 
-		report.private = sorted(
-			path for path in data if not portable.shareable(path, roots)
-		)
+		report.private = sorted(path for path in data if not portable.shareable(path, roots))
 
 	report.missing_roots = sorted(
-		str(entry)
-		for entry in (settings.get("daemon.paths", []) or [])
-		if not paths.resolve(str(entry)).is_dir()
+		str(entry) for entry in (settings.get("daemon.paths", []) or []) if not paths.resolve(str(entry)).is_dir()
 	)
 
 	return report
@@ -495,15 +489,10 @@ def describe(context: Context, report: Report) -> None:
 		_heading(
 			"Missing",
 			len(report.stale),
-			"nothing at this path, and nothing on disk that matches it"
-			if report.scanned
-			else "nothing at this path",
+			"nothing at this path, and nothing on disk that matches it" if report.scanned else "nothing at this path",
 		)
 
-		rows = [
-			f"  {Path(path).name}\n      {C.GRAY}{_short(path, roots)}{C.RESET}"
-			for path in report.stale
-		]
+		rows = [f"  {Path(path).name}\n      {C.GRAY}{_short(path, roots)}{C.RESET}" for path in report.stale]
 
 		for row in _listing(rows, context.verbose):
 			print(row)
@@ -549,9 +538,7 @@ def command_doctor(context: Context, args: list[str]) -> int:
 
 		return 1
 
-	applying = any(
-		argument.lstrip("-") in ("fix", "apply", "repair") for argument in wanted
-	)
+	applying = any(argument.lstrip("-") in ("fix", "apply", "repair") for argument in wanted)
 
 	report = examine(context)
 

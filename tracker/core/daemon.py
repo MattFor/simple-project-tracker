@@ -90,9 +90,7 @@ def is_running(pid: int) -> bool:
 	return True
 
 
-def write_pid(
-	pid: int, settings: Settings, watched: list[str], started: str = ""
-) -> None:
+def write_pid(pid: int, settings: Settings, watched: list[str], started: str = "") -> None:
 	pid_file = paths.daemon_pid_file()
 
 	state = {
@@ -290,9 +288,7 @@ def status(settings: Settings | None = None) -> int:
 			print(f"database: {database}")
 
 			if database != str(data_path(settings)):
-				mismatch = (
-					"the running daemon uses a different database than this command"
-				)
+				mismatch = "the running daemon uses a different database than this command"
 
 				print(f"{C.YELLOW}[WARNING] {mismatch}{C.RESET}")
 
@@ -328,9 +324,7 @@ def show_log(lines: int = 40) -> int:
 #
 
 
-def scan_watched(
-	watched: list[str], settings: Settings | None = None
-) -> tuple[list[Path], Projects]:
+def scan_watched(watched: list[str], settings: Settings | None = None) -> tuple[list[Path], Projects]:
 	settings = settings or default_settings
 
 	valid: list[Path] = []
@@ -380,9 +374,7 @@ def _refresh(data: Projects, found: Projects, timestamp: str) -> None:
 			restore(existing)
 
 
-def _missing(
-	data: Projects, valid: list[Path], found: Projects, exclude: list[str]
-) -> list[str]:
+def _missing(data: Projects, valid: list[Path], found: Projects, exclude: list[str]) -> list[str]:
 	return [
 		project_path
 		for project_path in data
@@ -396,9 +388,7 @@ def _missing(
 VANISH_FLOOR = 3
 
 
-def _vanished_too_many(
-	data: Projects, valid: list[Path], gone: list[str], limit: int
-) -> list[str]:
+def _vanished_too_many(data: Projects, valid: list[Path], gone: list[str], limit: int) -> list[str]:
 	if limit >= 100:
 		return []
 
@@ -410,8 +400,7 @@ def _vanished_too_many(
 	live = [
 		path
 		for path, project in data.items()
-		if not project.get("archived", False)
-		and any(Path(path).is_relative_to(root) for root in valid)
+		if not project.get("archived", False) and any(Path(path).is_relative_to(root) for root in valid)
 	]
 
 	if not live or len(fresh) * 100 <= len(live) * limit:
@@ -441,14 +430,10 @@ def merge_scan(
 	gone = _missing(data, valid, found, exclude)
 
 	candidates = gone + [
-		path
-		for path in before_paths
-		if path not in found and path not in gone and vanished(path, data[path])
+		path for path in before_paths if path not in found and path not in gone and vanished(path, data[path])
 	]
 
-	moved = (
-		apply_moves(data, added, candidates) if settings["scan"]["detect_moves"] else []
-	)
+	moved = apply_moves(data, added, candidates) if settings["scan"]["detect_moves"] else []
 
 	for old, new in moved:
 		added.remove(new)
@@ -653,10 +638,7 @@ def run(settings: Settings | None = None) -> int:
 
 			_report(
 				f"moved {_count(result.moved)}",
-				[
-					(str(data[new]["id"]), Path(new).name, f"{old} -> {new}")
-					for old, new in result.moved
-				],
+				[(str(data[new]["id"]), Path(new).name, f"{old} -> {new}") for old, new in result.moved],
 				timestamp,
 			)
 
@@ -675,10 +657,7 @@ def run(settings: Settings | None = None) -> int:
 
 				_report(
 					"kept",
-					[
-						(str(data[path]["id"]), Path(path).name, path)
-						for path in result.blocked
-					],
+					[(str(data[path]["id"]), Path(path).name, path) for path in result.blocked],
 					timestamp,
 				)
 

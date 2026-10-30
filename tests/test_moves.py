@@ -35,9 +35,7 @@ def test_a_scan_stores_the_identity(tmp_path: Path):
 
 	found = scan(tmp_path)
 
-	assert found[str(tmp_path / "alpha")].get("identity") == identity_of(
-		str(tmp_path / "alpha")
-	)
+	assert found[str(tmp_path / "alpha")].get("identity") == identity_of(str(tmp_path / "alpha"))
 
 
 def test_a_moved_project_keeps_its_entry(tmp_path: Path):

@@ -74,13 +74,9 @@ def shared(data: Projects, settings: Settings | None = None) -> Projects:
 	return contract_paths(data, settings)
 
 
-def save_data(
-	data: Projects, settings: Settings | None = None, *, undoable: bool = False
-) -> bool:
+def save_data(data: Projects, settings: Settings | None = None, *, undoable: bool = False) -> bool:
 	for project in data.values():
 		for field in TRANSIENT_FIELDS:
 			_ = project.pop(field, None)
 
-	return write(
-		data_path(settings), shared(data, settings), "database", undoable=undoable
-	)
+	return write(data_path(settings), shared(data, settings), "database", undoable=undoable)

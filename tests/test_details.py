@@ -102,3 +102,32 @@ def test_the_metadata_falls_back_to_the_source_tree():
 	assert project.name
 	assert project.version
 	assert project.author
+
+
+def test_every_branch_is_listed_only_when_asked_for(tmp_path: Path):
+	import shutil
+	import subprocess
+
+	import pytest
+
+	if not shutil.which("git"):
+		pytest.skip("no git")
+
+	def git(*args: str) -> None:
+		_ = subprocess.run(["git", "-C", str(tmp_path), *args], check=True, capture_output=True)
+
+	git("init", "-q", "-b", "main")
+	git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "first")
+	git("branch", "side")
+	git("update-ref", "refs/remotes/origin/main", "HEAD")
+	git("symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+
+	local = shown(str(tmp_path), sample(str(tmp_path)), output__branches="local")
+	every = shown(str(tmp_path), sample(str(tmp_path)), output__branches="all")
+
+	assert "* main" in local and "  side" in local
+	assert "origin/main" not in local
+	assert "origin/main" in every
+	# origin/HEAD only points at origin/main
+	assert "  origin " not in every
+	assert "Branches" not in shown(str(tmp_path), sample(str(tmp_path)))

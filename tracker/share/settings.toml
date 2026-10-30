@@ -227,6 +227,13 @@ absolute_paths = true
 # printing the list.
 browser = false
 
+# The git branches a project's details list, with their last commits. b cycles
+# them in the browser.
+# current = only the one checked out
+# local   = every local branch
+# all     = the remote ones as well, as of the last fetch
+branches = "current"
+
 
 [todos]
 # TRACKER_TODOS overrides this.

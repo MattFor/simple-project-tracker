@@ -99,9 +99,7 @@ def main() -> int:
 
 				passed += 1
 			except Exception:
-				failures.append(
-					(f"{name}.{attribute}", traceback.format_exc(), said.getvalue())
-				)
+				failures.append((f"{name}.{attribute}", traceback.format_exc(), said.getvalue()))
 			finally:
 				patch.undo()
 

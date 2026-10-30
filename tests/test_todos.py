@@ -585,13 +585,9 @@ def test_the_command_line_knows_the_todo_command():
 
 
 def test_a_todo_swallows_the_words_of_other_commands():
-	assert split(["td", "add", "check", "the", "list"]) == [
-		("todo", ["add", "check", "the", "list"])
-	]
+	assert split(["td", "add", "check", "the", "list"]) == [("todo", ["add", "check", "the", "list"])]
 
-	assert split(["td", "3", "note", "remove", "it", "later"]) == [
-		("todo", ["3", "note", "remove", "it", "later"])
-	]
+	assert split(["td", "3", "note", "remove", "it", "later"]) == [("todo", ["3", "note", "remove", "it", "later"])]
 
 
 def test_the_todo_actions_fuse_onto_the_command():
@@ -694,9 +690,7 @@ def test_todos_and_projects_are_selected_the_same_way(tmp_path: Path):
 	projects = make_projects(*SAMPLE)
 	todos = {
 		str(index): new_todo(name, status=status, todo_id=index)
-		for index, (name, status) in enumerate(
-			(("alpha", "current"), ("beta", "archived"), ("gamma", "todo")), 1
-		)
+		for index, (name, status) in enumerate((("alpha", "current"), ("beta", "archived"), ("gamma", "todo")), 1)
 	}
 
 	for selector in ("all", "1", "#1", "i:1", "1-2", "1+1", "s:current", "alpha"):

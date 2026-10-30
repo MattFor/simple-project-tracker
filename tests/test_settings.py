@@ -100,9 +100,7 @@ def test_writer_adds_missing_keys_and_sections(tmp_path: Path):
 
 def test_writer_replaces_multi_line_arrays(tmp_path: Path):
 	path = tmp_path / "settings.toml"
-	_ = path.write_text(
-		'[projects]\nignore = [\n    ".git",\n    "venv"\n]\n\n[output]\ncolour = true\n'
-	)
+	_ = path.write_text('[projects]\nignore = [\n    ".git",\n    "venv"\n]\n\n[output]\ncolour = true\n')
 
 	assert write_setting(path, "projects.ignore", [".git"]) is None
 
@@ -129,10 +127,7 @@ def test_new_settings_are_known_and_validated():
 	assert settings.get("projects.number_preference") == "ask"
 	assert settings.get("projects.track_usage") is True
 
-	assert (
-		settings.override("display.relative_style", "short").get("display.relative_style")
-		== "short"
-	)
+	assert settings.override("display.relative_style", "short").get("display.relative_style") == "short"
 
 	assert settings.override("sorting.by", "last_used").get("sorting.by") == "last_used"
 
@@ -217,9 +212,7 @@ def test_a_scoped_table_is_written_to_a_section_of_its_own(tmp_path: Path):
 def test_the_shipped_file_and_the_defaults_agree():
 	from tracker.config import paths
 
-	shipped = tomllib.loads(
-		paths.bundled_file(paths.SETTINGS_NAME).read_text(encoding="utf-8")
-	)
+	shipped = tomllib.loads(paths.bundled_file(paths.SETTINGS_NAME).read_text(encoding="utf-8"))
 
 	reference = defaults()
 
@@ -256,9 +249,7 @@ def test_every_setting_can_be_overridden_from_the_command_line():
 def test_a_table_is_never_written_back_as_one_line(tmp_path: Path):
 	path = tmp_path / "settings.toml"
 
-	_ = path.write_text(
-		"[projects]\nauto_status = false\n\n[projects.auto_status_rules]\ndev = 7\n"
-	)
+	_ = path.write_text("[projects]\nauto_status = false\n\n[projects.auto_status_rules]\ndev = 7\n")
 
 	before = path.read_text()
 	error = write_setting(path, "projects.auto_status_rules", {"dev": 1})
