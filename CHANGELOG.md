@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.4.0] - 07:44 CEST 30-10-2026
 
 ### Added
 
@@ -98,6 +98,7 @@ First release! Scanning, the database, statuses and notes, selection by ID, TID,
 path, range or status, list filters, the row format, relative times, the daemon, shell
 completion, the settings file and the man page.
 
+[1.4.0]: https://github.com/MattFor/simple-project-tracker/releases/tag/v1.4.0
 [1.3.0]: https://github.com/MattFor/simple-project-tracker/releases/tag/v1.3.0
 [1.2.1]: https://github.com/MattFor/simple-project-tracker/releases/tag/v1.2.1
 [1.2.0]: https://github.com/MattFor/simple-project-tracker/releases/tag/v1.2.0
