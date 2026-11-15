@@ -4,27 +4,8 @@
 [![PyPI](https://img.shields.io/pypi/v/simple-project-tracker)](https://pypi.org/project/simple-project-tracker/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A simple, but very customizable tracker to keep track of your projects, their states and
+A simple, but very customisable tracker to keep track of your projects, their states and
 your notes on them.
-
-```
-TID | ID | NAME                          | STATUS  | LAST TOUCHED | NOTE
---- | -- | ----------------------------- | ------- | ------------ | ---------------------
-1   | 8  | tracker                       | dev     | 1m ago       | release 1.0.0 today
-2   | 3  | von-neumann-machine-simulator | dev     | 23m ago      | review saturday
-3   | 26 | discord-profile-studio        | stable  | 1h ago
-```
-
-## Contents
-
-- [Install](#install)
-- [Commands](#commands)
-- [Todos](#todos)
-- [Selecting projects](#selecting-projects)
-- [Several machines](#several-machines)
-- [Configuration](#configuration)
-- [Development](#development)
-- [License](#license)
 
 ## Install
 
@@ -37,7 +18,28 @@ sudo ./install.sh        # /usr/local
 
 Python 3.11+. Then `t init ~/(your project directory)` to fill the database.
 
-## Commands
+## Usage
+
+```
+TID | ID | NAME                          | STATUS  | LAST TOUCHED | NOTE
+--- | -- | ----------------------------- | ------- | ------------ | ---------------------
+1   | 8  | tracker                       | dev     | 1m ago       | release 1.0.0 today
+2   | 3  | von-neumann-machine-simulator | dev     | 23m ago      | review saturday
+3   | 26 | discord-profile-studio        | stable  | 1h ago
+```
+
+### Contents
+
+- [Install](#install)
+- [Commands](#commands)
+- [Todos](#todos)
+- [Selecting projects](#selecting-projects)
+- [Several machines](#several-machines)
+- [Configuration](#configuration)
+- [Contributing](#contributing)
+- [License](#license)
+
+### Commands
 
 `t` on its own lists projects. With `output.browser` on it opens a browser.
 
@@ -84,7 +86,7 @@ t all          # everything with no limit and no filter
 For more information do: `t help`, `t help <command>` or `t help <topic>`. The full guide
 is within `man tracker`.
 
-## Todos
+### Todos
 
 List of notes that's separate from the main project database.
 
@@ -116,7 +118,7 @@ A note may point at a project with `@name`, printed as `name#id:tid` in that pro
 status colour. `t check <project>` then lists the todos about it, and `t td check <todo>`
 the projects it names.
 
-## Selecting projects
+### Selecting projects
 
 | Selector    | Means                                                     |
 | ----------- | --------------------------------------------------------- |
@@ -133,7 +135,7 @@ A temporary ID is the index of the latest output.
 When a partial name matches several projects, it's settled by
 `projects.conflict_resolution_preference`.
 
-## Several machines
+### Several machines
 
 The database can live in a Syncthing, Dropbox or git folder.
 
@@ -166,7 +168,7 @@ Tracked twice (2)
 timestamp. Two different notes are joined rather than one being dropped, and `t undo`
 takes the whole repair back.
 
-## Configuration
+### Configuration
 
 ```sh
 t settings                    # everything (default deviations marked)
@@ -199,12 +201,13 @@ or by its initials, with the section shortening the same way: `display.list_limi
 
 Notes can colour themselves: `t note 12 {red}broken{/} since friday`.
 
-## Development
+## Contributing
 
 ```sh
-make dev      # editable install plus ruff, basedpyright, pytest
-make check    # format, lint, types and tests (what CI runs)
+pip install -e . ruff basedpyright pytest   # editable install plus ruff, basedpyright, pytest
 ```
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the format, lint, type and test commands CI runs.
 
 ## Disclosure
 

@@ -75,7 +75,7 @@
 - `scan.vanish_limit`, the most of a scanned path's projects a single scan may mark
   deleted before it is treated as a broken scan.
 
-## [1.0.2]
+## [1.0.2] - 02:03 CEST 25-08-2026
 
 ### Changed
 
@@ -105,6 +105,5 @@ completion, the settings file and the man page.
 [1.1.0]: https://github.com/MattFor/simple-project-tracker/releases/tag/v1.1.0
 [1.0.4]: https://github.com/MattFor/simple-project-tracker/releases/tag/v1.0.4
 [1.0.3]: https://github.com/MattFor/simple-project-tracker/releases/tag/v1.0.3
-[1.0.2]: https://github.com/MattFor/simple-project-tracker/releases/tag/v1.0.2
 [1.0.1]: https://github.com/MattFor/simple-project-tracker/releases/tag/v1.0.1
 [1.0.0]: https://github.com/MattFor/simple-project-tracker/releases/tag/v1.0.0

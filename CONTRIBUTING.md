@@ -30,7 +30,7 @@ pytest                 # must be green
 python tests/run.py    # the same suite without pytest installed
 ```
 
-`make check` runs all of it in one go. The CI runs the same on Linux and macOS against
+The CI runs the same on Linux and macOS against
 Python 3.11, 3.12 etc., and builds the distribution.
 
 If you want it automation:
