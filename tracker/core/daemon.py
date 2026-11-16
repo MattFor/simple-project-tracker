@@ -31,7 +31,7 @@ from tracker.core.models import (
 from tracker.core.models import (
 	archive as archive_project,
 )
-from tracker.core.storage import data_path, load_data, save_data
+from tracker.core.storage import data_path, load_data, locked, save_data
 from tracker.ui.ansi import C
 from tracker.ui.ask import confirm
 from tracker.util.files import load_json, read_toml, save_json
@@ -482,12 +482,13 @@ def update_database(
 
 	valid, found = scan_watched(watched, settings)
 
-	data = load_data(settings)
+	with locked(data_path(settings)):
+		data = load_data(settings)
 
-	result = merge_scan(data, valid, found, archive, settings)
+		result = merge_scan(data, valid, found, archive, settings)
 
-	if result.changed:
-		_ = save_data(data, settings)
+		if result.changed:
+			_ = save_data(data, settings)
 
 	return data, result
 

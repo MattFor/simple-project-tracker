@@ -1,12 +1,15 @@
 import json
 import os
 import pickle
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
 from tests.helpers import SAMPLE, make_projects, make_settings
 from tracker.core.discovery import find_projects, get_last_touched_date
-from tracker.core.storage import data_path, load_data, save_data
+from tracker.core.storage import data_path, load_data, locked, save_data
+from tracker.core.todos import load_todos, new_todo, save_todos, todo_path
 from tracker.core.undo import restore
 from tracker.util.files import load_legacy_pkl, read_json, save_json
 
@@ -67,6 +70,31 @@ def test_writes_are_atomic(tmp_path: Path):
 	_ = save_json(path, {"a": 1})
 
 	assert [entry.name for entry in tmp_path.iterdir()] == ["data.json"]
+
+
+def test_writers_take_turns_and_lose_nothing(tmp_path: Path):
+	os.environ["TRACKER_TODOS"] = str(tmp_path / "todos.json")
+	settings = make_settings()
+
+	def add(first: int) -> None:
+		for number in range(first, first + 15):
+			with locked(todo_path(settings)):
+				todos = load_todos(settings)
+				# Long enough for the other writer to load the same list, were it not waiting
+				time.sleep(0.002)
+				todos[str(number)] = new_todo(f"#{number}", status="todo", todo_id=number)
+				_ = save_todos(todos, settings, undoable=False)
+
+	writers = [threading.Thread(target=add, args=(first,)) for first in (1, 101)]
+
+	for writer in writers:
+		writer.start()
+
+	for writer in writers:
+		writer.join()
+
+	assert len(load_todos(settings)) == 30
+	assert (tmp_path / "todos.json.lock").read_bytes() == b""
 
 
 def test_an_old_pickle_database_moves_to_json_once(tmp_path: Path):

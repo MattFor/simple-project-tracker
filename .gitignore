@@ -16,10 +16,12 @@ todos.pkl.corrupt-*
 data.json
 data.json.undo
 data.json.corrupt-*
+data.json.lock
 
 todos.json
 todos.json.undo
 todos.json.corrupt-*
+todos.json.lock
 
 __pycache__
 *.py[cod]

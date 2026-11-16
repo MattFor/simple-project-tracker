@@ -1,6 +1,7 @@
 import contextlib
+import fcntl
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -66,6 +67,22 @@ def read(path: Path, prepare: Callable[[Any], T], what: str) -> T:
 		return prepare(None)
 
 	return prepare(data)
+
+
+@contextlib.contextmanager
+def locked(*files: Path) -> Generator[None]:
+	"""Lets one process at a time load, change and save these databases. Take them in this order."""
+
+	with contextlib.ExitStack() as stack:
+		for file in files:
+			try:
+				lock = stack.enter_context(open(file.with_name(f"{file.name}.lock"), "ab"))
+				fcntl.flock(lock, fcntl.LOCK_EX)
+			except OSError:
+				# Android's shared storage has no flock, and a folder not made yet holds nothing to guard
+				continue
+
+		yield
 
 
 def write(path: Path, data: Any, what: str, *, undoable: bool = False) -> bool:

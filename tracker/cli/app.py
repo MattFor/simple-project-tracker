@@ -4,7 +4,8 @@ from typing import Any
 from tracker.cli import commands, doctor, relocate, todo
 from tracker.cli.entries import Context, Handler
 from tracker.config.settings import Settings
-from tracker.core.storage import load_data
+from tracker.core.storage import data_path, load_data, locked
+from tracker.core.todos import todo_path
 from tracker.ui import ansi, mentions
 from tracker.ui.ansi import C
 from tracker.ui.render import print_projects
@@ -108,6 +109,9 @@ HANDLERS: dict[str, Handler] = {
 GREEDY = frozenset({"add", "completion", "edit", "move", "note", "status", "todo"})
 
 SUBJECT = frozenset({"check", "edit", "forget", "note", "path", "remove", "show", "status"})
+
+# They never touch the databases and may run for long: the daemon loop, an editor
+UNLOCKED = frozenset({"daemon", "settings"})
 
 ACTIONS: dict[str, frozenset[str]] = {
 	"todo": frozenset(todo.ALIASES),
@@ -375,44 +379,51 @@ def main(argv: list[str] | None = None) -> int:
 
 	verbose = bool(flags["verbose"] or settings["logging"]["always_verbose"])
 
-	context = Context(
-		settings=settings,
-		data=load_data(settings),
-		verbose=verbose,
-		assume_yes=bool(flags["yes"]),
-	)
+	commands = split(args) if args else []
 
-	# A note may point at a project, and these are already read
-	mentions.use(context.data)
+	# Held from load to save so a daemon scan or the browser saving meanwhile is not overwritten
+	exclusive = commands and UNLOCKED.isdisjoint(name for name, _ in commands)
+	turns = [data_path(settings), todo_path(settings)] if exclusive else []
 
-	context.log(f"settings: {settings.path}")
-	context.log(f"projects: {len(context.data)}")
+	with locked(*turns):
+		context = Context(
+			settings=settings,
+			data=load_data(settings),
+			verbose=verbose,
+			assume_yes=bool(flags["yes"]),
+		)
 
-	if not args:
-		if settings["output"]["browser"] and sys.stdin.isatty() and sys.stdout.isatty():
-			from tracker.ui.tui import run
+		# A note may point at a project, and these are already read
+		mentions.use(context.data)
 
-			return run(context.data, settings)
+		context.log(f"settings: {settings.path}")
+		context.log(f"projects: {len(context.data)}")
 
-		print_projects(context.data, settings)
-		return 0
+		if not args:
+			if settings["output"]["browser"] and sys.stdin.isatty() and sys.stdout.isatty():
+				from tracker.ui.tui import run
 
-	status = 0
+				return run(context.data, settings)
 
-	for name, arguments in split(args):
-		handler = HANDLERS.get(name)
-
-		if handler is None:
-			print(f"[ERROR] unknown command '{name}'")
-			status = 1
-			continue
-
-		try:
-			status = handler(context, arguments) or status
-		except KeyboardInterrupt:
-			print()
-			return 130
-		except BrokenPipeError:
+			print_projects(context.data, settings)
 			return 0
 
-	return status
+		status = 0
+
+		for name, arguments in commands:
+			handler = HANDLERS.get(name)
+
+			if handler is None:
+				print(f"[ERROR] unknown command '{name}'")
+				status = 1
+				continue
+
+			try:
+				status = handler(context, arguments) or status
+			except KeyboardInterrupt:
+				print()
+				return 130
+			except BrokenPipeError:
+				return 0
+
+		return status

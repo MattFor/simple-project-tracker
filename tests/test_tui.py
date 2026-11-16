@@ -6,7 +6,7 @@ import pytest
 from tests.helpers import SAMPLE, make_projects, make_settings
 from tracker.core.models import Project
 from tracker.core.storage import load_data, save_data
-from tracker.core.todos import load_todos, new_todo
+from tracker.core.todos import load_todos, new_todo, save_todos
 from tracker.ui import mentions
 
 from tracker.util.text import strip_ansi
@@ -236,3 +236,41 @@ def test_the_browser_adds_edits_links_and_removes_todos(tmp_path: Path, monkeypa
 
 	press(browser, "u")
 	assert "1" in load_todos(settings)
+
+
+def test_the_browser_keeps_what_another_process_saved_meanwhile(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+	monkeypatch.setenv("TRACKER_TODOS", str(tmp_path / "todos.json"))
+	monkeypatch.setenv("TRACKER_DATA", str(tmp_path / "data.json"))
+	settings = make_settings()
+	assert save_data(make_projects(*SAMPLE), settings)
+	assert save_todos({"1": new_todo("mine", status="todo", todo_id=1)}, settings)
+	browser = Browser(load_data(settings), settings)
+
+	# A shell adds a todo and the daemon notes a project while the browser is open
+	todos = load_todos(settings)
+	todos["2"] = new_todo("from a shell", status="todo", todo_id=2)
+	assert save_todos(todos, settings)
+	projects = load_data(settings)
+	projects["/home/user/code/gamma"]["note"] = "from the daemon"
+	assert save_data(projects, settings)
+
+	def select(path: str) -> None:
+		browser.move([node.path for _, node in browser.rows].index(path))
+
+	select("/home/user/code/alpha")
+	press(browser, "p", 21, "paused", 10)
+	projects = load_data(settings)
+	assert projects["/home/user/code/alpha"]["status"] == "paused"
+	assert projects["/home/user/code/gamma"].get("note") == "from the daemon"
+
+	press(browser, "\t")
+	select("1")
+	press(browser, "x", "n", "third", 10)
+	statuses = {key: todo["status"] for key, todo in load_todos(settings).items()}
+	assert statuses == {"1": "done", "2": "todo", "3": "todo"}
+
+	# Gone from disk is gone, not brought back
+	assert save_todos({}, settings)
+	press(browser, "x")
+	assert "is gone" in browser.message
+	assert load_todos(settings) == {}

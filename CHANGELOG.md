@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- The browser saved the database and the todo list as it had read them, so whatever the daemon or
+  a `t` command in another shell changed while it was open was lost, a todo added from a shell
+  among them. Every edit now reads what is on disk, changes that one entry and saves; an entry gone
+  from disk stays gone.
+- The daemon, the commands and the browser take turns to read, change and save, through a
+  `data.json.lock` / `todos.json.lock` beside each file (empty, safe to sync). Where locks do not
+  work, as on Android's shared storage, they go ahead without.
+
 ## [1.4.1] - 08:23 CET 16-11-2026
 
 ### Changed

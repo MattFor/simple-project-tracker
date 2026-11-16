@@ -4,18 +4,18 @@ import locale
 import os
 import re
 from collections import Counter
-from collections.abc import Callable, Iterator
-from contextlib import redirect_stdout, suppress
+from collections.abc import Callable, Generator, Iterator
+from contextlib import contextmanager, redirect_stdout, suppress
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import final
+from typing import Any, final
 
 from tracker.config.defaults import BRANCHES
 from tracker.config.settings import Settings
 from tracker.core import models
 from tracker.core.models import Project, Projects
 from tracker.core.selection import sort_projects, visible_projects
-from tracker.core.storage import load_data, save_data
+from tracker.core.storage import data_path, load_data, locked, save_data
 from tracker.core.todos import (
 	Todo,
 	Todos,
@@ -33,6 +33,7 @@ from tracker.core.todos import (
 	status_counts,
 	status_of,
 	temporary_ids,
+	todo_path,
 )
 from tracker.core.todos import restore as restore_todos
 from tracker.core.undo import restore
@@ -911,30 +912,50 @@ class Browser:
 		self.message = done if ok else next(iter(buffer.getvalue().strip().splitlines()), failed)
 		self.reload()
 
-	def change(self, node: Node, field: str, value: str, done: str = "") -> None:
-		entry = node.todo if node.todo is not None else node.project
+	@contextmanager
+	def fresh(self, todos: bool) -> Generator[dict[str, Any]]:
+		"""The database as it is on disk, held until saved; the daemon or a shell may have changed it since."""
+
+		with locked(todo_path(self.settings) if todos else data_path(self.settings)):
+			yield load_todos(self.settings) if todos else load_data(self.settings)
+
+	def gone(self, node: Node) -> None:
+		self.message = f"{node.name} is gone, changed elsewhere"
+		self.reload()
+
+	def change(self, node: Node, field: str, value: str, done: str = "", *, append: bool = False) -> None:
 		value = value if field == "note" else value.strip()
 
-		if entry is None:
+		if not node.described():
 			return
 
 		if field != "note" and not value:
 			self.message = f"the {field} cannot be empty"
 			return
 
-		if str(entry.get(field, "")) == value:
-			self.message = "nothing changed"
-			return
+		with self.fresh(node.todo is not None) as fresh:
+			entry = fresh.get(node.path)
 
-		if node.todo is not None:
-			set_field(node.todo, field, value, self.settings)
-			self.saved(lambda: save_todos(self.todos, self.settings), done or f"{field} of {node.name} set")
-		elif node.project is not None:
-			models.set_field(node.project, field, value)
-			self.saved(
-				lambda: save_data(self.projects, self.settings, undoable=True),
-				done or f"{field} of {node.name} set",
-			)
+			if entry is None:
+				self.gone(node)
+				return
+
+			if append:
+				value = f"{entry.get(field, '') or ''} {value}".strip()
+
+			if str(entry.get(field, "")) == value:
+				self.message = "nothing changed"
+				return
+
+			if node.todo is not None:
+				set_field(entry, field, value, self.settings)
+				self.saved(lambda: save_todos(fresh, self.settings), done or f"{field} of {node.name} set")
+			else:
+				models.set_field(entry, field, value)
+				self.saved(
+					lambda: save_data(fresh, self.settings, undoable=True),
+					done or f"{field} of {node.name} set",
+				)
 
 	def edit(self, field: str) -> None:
 		node = self.selected()
@@ -968,17 +989,18 @@ class Browser:
 		if not name.strip():
 			return
 
-		todo = new_todo(
-			name.strip(),
-			status=new_status(self.settings),
-			note=mention_of(about, self.projects) if about else "",
-			todo_id=next_id(self.todos),
-			created=stamp(self.settings),
-		)
-		key = key_of(todo)
-		self.todos[key] = todo
+		with self.fresh(True) as todos:
+			todo = new_todo(
+				name.strip(),
+				status=new_status(self.settings),
+				note=mention_of(about, self.projects) if about else "",
+				todo_id=next_id(todos),
+				created=stamp(self.settings),
+			)
+			key = key_of(todo)
+			todos[key] = todo
 
-		self.saved(lambda: save_todos(self.todos, self.settings), f"added #{key} {todo['name']}")
+			self.saved(lambda: save_todos(todos, self.settings), f"added #{key} {todo['name']}")
 
 		if self.todo_mode:
 			self.focus(key, todo=True)
@@ -989,13 +1011,18 @@ class Browser:
 		if node is None or node.todo is None:
 			return
 
-		del self.todos[node.path]
-		self.saved(lambda: save_todos(self.todos, self.settings), f"removed {node.name}, u to undo")
+		with self.fresh(True) as todos:
+			if todos.pop(node.path, None) is None:
+				self.gone(node)
+				return
+
+			self.saved(lambda: save_todos(todos, self.settings), f"removed {node.name}, u to undo")
 
 	def undo(self) -> None:
 		undone = restore_todos if self.todo_mode else restore
 
-		self.saved(lambda: undone(self.settings) is not None, "undone", "nothing to undo")
+		with self.fresh(self.todo_mode):
+			self.saved(lambda: undone(self.settings) is not None, "undone", "nothing to undo")
 
 	def link(self) -> None:
 		node = self.selected()
@@ -1021,8 +1048,8 @@ class Browser:
 			self.message = f"{todo.name} is already about {project.name}"
 			return
 
-		note = f"{todo.todo.get('note', '') or ''} {mention_of(project.path, self.projects)}".strip()
-		self.change(todo, "note", note, f"linked {todo.name} to {project.name}")
+		mention = mention_of(project.path, self.projects)
+		self.change(todo, "note", mention, f"linked {todo.name} to {project.name}", append=True)
 
 	def follow(self) -> None:
 		node = self.selected()
