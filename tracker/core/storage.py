@@ -1,3 +1,4 @@
+import contextlib
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -8,7 +9,7 @@ from tracker.config.settings import Settings
 from tracker.config.settings import settings as default_settings
 from tracker.core.models import TRANSIENT_FIELDS, Projects, normalise
 from tracker.core.portable import contract_paths, expand_paths
-from tracker.util.files import load_pkl, save_pkl
+from tracker.util.files import load_legacy_pkl, read_json, save_json
 
 T = TypeVar("T")
 
@@ -18,9 +19,38 @@ T = TypeVar("T")
 #
 
 
-def read(path: Path, prepare: Callable[[Any], T], what: str) -> T:
+def migrate(path: Path, prepare: Callable[[Any], Any], what: str) -> None:
+	"""Moves the pickle a database was kept in before 1.4.1 to JSON, once."""
 
-	data, error = load_pkl(path)
+	if path.suffix != ".json":
+		return
+
+	legacy = path.with_suffix(".pkl")
+
+	for suffix in ("", ".undo"):
+		old = legacy.with_name(legacy.name + suffix)
+		new = path.with_name(path.name + suffix)
+
+		if new.exists() or not old.is_file():
+			continue
+
+		data, error = load_legacy_pkl(old)
+
+		if error is None and not save_json(new, prepare(data)):
+			error = f"could not write {new}"
+
+		if error is not None:
+			print(f"[ERROR] the {what} at {old} was not migrated ({error})")
+			continue
+
+		with contextlib.suppress(OSError):
+			_ = old.replace(old.with_name(f"{old.name}.migrated"))
+
+
+def read(path: Path, prepare: Callable[[Any], T], what: str) -> T:
+	migrate(path, prepare, what)
+
+	data, error = read_json(path)
 
 	if error is not None:
 		backup = path.with_name(f"{path.name}.corrupt-{time.strftime('%Y%m%d-%H%M%S')}")
@@ -44,7 +74,7 @@ def write(path: Path, data: Any, what: str, *, undoable: bool = False) -> bool:
 
 		_ = keep_file(path)
 
-	if not save_pkl(path, data):
+	if not save_json(path, data):
 		print(f"[ERROR] could not write the {what} at {path}")
 		return False
 

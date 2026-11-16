@@ -19,8 +19,8 @@ from tracker.core.todos import (
 
 
 def isolate(tmp_path: Path) -> None:
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
-	os.environ["TRACKER_TODOS"] = str(tmp_path / "todos.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
+	os.environ["TRACKER_TODOS"] = str(tmp_path / "todos.json")
 	os.environ["TRACKER_VIEW"] = str(tmp_path / "view.json")
 
 
@@ -343,8 +343,8 @@ def test_the_todo_list_is_kept_apart_from_the_projects(tmp_path: Path):
 
 	_ = run(holder, "add", "read the manual")
 
-	assert (tmp_path / "todos.pkl").is_file()
-	assert not (tmp_path / "data.pkl").exists()
+	assert (tmp_path / "todos.json").is_file()
+	assert not (tmp_path / "data.json").exists()
 
 
 #

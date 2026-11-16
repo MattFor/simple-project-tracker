@@ -11,7 +11,7 @@ from tracker.cli.entries import Context
 
 
 def context(tmp_path: Path, **overrides: object) -> Context:
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 	return Context(settings=make_settings(**overrides), data=make_projects(*SAMPLE))
 
@@ -97,7 +97,7 @@ def test_all_lists_instead_of_describing_every_project(tmp_path: Path):
 
 
 def test_an_unknown_command_is_reported(tmp_path: Path):
-	os.environ["TRACKER_DATA"] = str(tmp_path / "empty.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "empty.json")
 
 	stream = io.StringIO()
 
@@ -109,7 +109,7 @@ def test_an_unknown_command_is_reported(tmp_path: Path):
 
 
 def test_version_and_help_always_work(tmp_path: Path):
-	os.environ["TRACKER_DATA"] = str(tmp_path / "empty.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "empty.json")
 
 	for arguments in (["version"], ["help"], ["help", "names"], ["--help"]):
 		stream = io.StringIO()
@@ -124,7 +124,7 @@ def test_version_and_help_always_work(tmp_path: Path):
 def test_adding_a_moved_project_keeps_its_entry(tmp_path: Path):
 	from tracker.cli.commands import command_add, command_init
 
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 	code = tmp_path / "code"
 	(code / "alpha" / ".git").mkdir(parents=True)
@@ -149,7 +149,7 @@ def test_adding_a_moved_project_keeps_its_entry(tmp_path: Path):
 
 
 def status_sample(tmp_path: Path) -> Context:
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 	return Context(
 		settings=make_settings(sorting__by="name", sorting__direction="ascending"),
@@ -280,7 +280,7 @@ def test_removing_a_project_leaves_the_other_numbers_alone(tmp_path: Path):
 def test_a_scan_reports_what_it_actually_refreshed(tmp_path: Path):
 	from tracker.cli.commands import command_init
 
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 	one = tmp_path / "one"
 	two = tmp_path / "two"

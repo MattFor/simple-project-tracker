@@ -194,7 +194,7 @@ def test_the_decorator_saves_what_a_command_used(tmp_path: Path):
 	from tests.helpers import SAMPLE, make_projects, make_settings
 	from tracker.cli.entries import Context, marks_used
 
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 	projects = make_projects(*SAMPLE)
 	context = Context(settings=make_settings(), data=projects)
@@ -209,7 +209,7 @@ def test_the_decorator_saves_what_a_command_used(tmp_path: Path):
 
 	assert handler(context, []) == 0
 	assert context.pending is False
-	assert (tmp_path / "data.pkl").is_file()
+	assert (tmp_path / "data.json").is_file()
 
 
 def test_editing_only_a_field_fuses_into_edit():

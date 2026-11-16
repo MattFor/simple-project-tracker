@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- The database and the todo list are JSON, `data.json` and `todos.json`. The first run moves the
+  old `.pkl` files and their undo copies over and keeps them as `.pkl.migrated`. Settings that
+  still name a `.pkl` use the `.json` beside it.
+
+### Fixed
+
+- A database planted in a shared folder (a phone's Syncthing folder, say) ran its code on every
+  machine that read it, as unpickling runs what it loads. The old files are read once, by a loader
+  that refuses anything but plain data, and pickle is never loaded after that.
+
 ## [1.4.0] - 07:44 CEST 30-10-2026
 
 ### Added

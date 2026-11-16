@@ -9,8 +9,8 @@ HELP_NAME = "help.txt"
 SETTINGS_NAME = "settings.toml"
 LOCAL_SETTINGS_NAME = "my_settings.toml"
 
-DEFAULT_DATA_FILE = "data.pkl"
-DEFAULT_TODO_FILE = "todos.pkl"
+DEFAULT_DATA_FILE = "data.json"
+DEFAULT_TODO_FILE = "todos.json"
 
 
 #
@@ -205,16 +205,22 @@ def editable_settings_file() -> Path:
 #
 
 
+def as_json(path: Path) -> Path:
+	"""Settings written before 1.4.1 still name the .pkl the database was."""
+
+	return path.with_suffix(".json") if path.suffix == ".pkl" else path
+
+
 def data_file(configured: str | None = None) -> Path:
 	chosen = os.environ.get("TRACKER_DATA") or configured or DEFAULT_DATA_FILE
 
-	return resolve(chosen, database_dir())
+	return as_json(resolve(chosen, database_dir()))
 
 
 def todo_file(configured: str | None = None) -> Path:
 	chosen = os.environ.get("TRACKER_TODOS") or configured or DEFAULT_TODO_FILE
 
-	return resolve(chosen, database_dir())
+	return as_json(resolve(chosen, database_dir()))
 
 
 def view_file() -> Path:

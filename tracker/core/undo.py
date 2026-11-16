@@ -6,7 +6,7 @@ from tracker.config.settings import Settings
 from tracker.config.settings import settings as default_settings
 from tracker.core.models import Projects, normalise
 from tracker.core.storage import data_path, load_data, local, save_data, shared
-from tracker.util.files import load_pkl, save_pkl
+from tracker.util.files import read_json, save_json
 
 T = TypeVar("T")
 
@@ -20,12 +20,12 @@ def backup_path(settings: Settings | None = None) -> Path:
 
 
 def keep_file(path: Path) -> bool:
-	current, error = load_pkl(path)
+	current, error = read_json(path)
 
 	if error is not None:
 		return False
 
-	return save_pkl(backup_of(path), current if current is not None else {})
+	return save_json(backup_of(path), current if current is not None else {})
 
 
 def keep(settings: Settings | None = None) -> bool:
@@ -38,12 +38,12 @@ def take_back(path: Path, current: Any) -> dict[str, Any] | None:
 	if not backup.is_file():
 		return None
 
-	kept, error = load_pkl(backup)
+	kept, error = read_json(backup)
 
 	if error is not None or not isinstance(kept, dict):
 		return None
 
-	if not save_pkl(backup, current):
+	if not save_json(backup, current):
 		return None
 
 	restored: dict[str, Any] = kept

@@ -14,7 +14,7 @@ from tracker.core.view import load_numbering, save_numbering
 
 def isolate(tmp_path: Path) -> None:
 	os.environ["TRACKER_VIEW"] = str(tmp_path / "view.json")
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 
 def names(numbering: dict[str, int]) -> list[str]:
@@ -87,7 +87,7 @@ def test_a_numbering_of_another_database_is_ignored(tmp_path: Path):
 
 	assert load_numbering(settings) is not None
 
-	os.environ["TRACKER_DATA"] = str(tmp_path / "other.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "other.json")
 
 	assert load_numbering(settings) is None
 

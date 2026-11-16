@@ -173,13 +173,13 @@ removal. One change is remembered, the last one. Looking at projects is not a
 change, and neither is a scan by the daemon, so neither of them can lose an
 undo. Undoing twice puts things back. The database as it was is kept beside it,
 as
-.IR data.pkl.undo .
+.IR data.json.undo .
 
 .TP
 .BR move ", " mv ", " relocate
 Move the settings, the database or the todo list somewhere else and point
 tracker at the new place, for example
-.BR "tracker move todos ~/synchronised-folder/todos.pkl" .
+.BR "tracker move todos ~/synchronised-folder/todos.json" .
 With no arguments it prints where all three live. A destination that is a
 directory, or ends with a slash, keeps the name the file has, and the
 .I .undo
@@ -829,11 +829,11 @@ tracker daemon status
 Your configuration.
 
 .TP
-.I ~/.local/share/tracker/data.pkl
+.I ~/.local/share/tracker/data.json
 Project database.
 
 .TP
-.I ~/.local/share/tracker/todos.pkl
+.I ~/.local/share/tracker/todos.json
 Todo list.
 
 .TP

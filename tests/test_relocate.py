@@ -21,8 +21,8 @@ def isolate(tmp_path: Path) -> Path:
 	os.environ["XDG_STATE_HOME"] = str(tmp_path / "state")
 
 	os.environ["TRACKER_SETTINGS"] = str(home / "settings.toml")
-	os.environ["TRACKER_DATA"] = str(home / "data.pkl")
-	os.environ["TRACKER_TODOS"] = str(home / "todos.pkl")
+	os.environ["TRACKER_DATA"] = str(home / "data.json")
+	os.environ["TRACKER_TODOS"] = str(home / "todos.json")
 	os.environ["TRACKER_VIEW"] = str(home / "view.json")
 
 	return home
@@ -65,9 +65,9 @@ def test_a_todo_list_moves_and_the_setting_follows(tmp_path: Path):
 	settings = home / "settings.toml"
 	_ = settings.write_text("[display]\nlist_limit = 5\n", encoding="utf-8")
 
-	todos = home / "todos.pkl"
+	todos = home / "todos.json"
 	_ = todos.write_bytes(b"a todo list")
-	_ = todos.with_name("todos.pkl.undo").write_bytes(b"the one before")
+	_ = todos.with_name("todos.json.undo").write_bytes(b"the one before")
 
 	sync = tmp_path / "sync"
 
@@ -76,12 +76,12 @@ def test_a_todo_list_moves_and_the_setting_follows(tmp_path: Path):
 	assert "moved" in shown
 	assert not todos.exists()
 
-	assert (sync / "todos.pkl").read_bytes() == b"a todo list"
-	assert (sync / "todos.pkl.undo").read_bytes() == b"the one before"
+	assert (sync / "todos.json").read_bytes() == b"a todo list"
+	assert (sync / "todos.json.undo").read_bytes() == b"the one before"
 
 	stored = written(settings)
 
-	assert stored["todos"] == {"database": str(sync / "todos.pkl")}
+	assert stored["todos"] == {"database": str(sync / "todos.json")}
 	assert stored["display"] == {"list_limit": 5}
 
 
@@ -96,14 +96,14 @@ def test_a_home_path_is_stored_as_it_was_typed(tmp_path: Path):
 	os.environ["HOME"] = str(tmp_path / "elsewhere")
 
 	try:
-		_ = run(holder, "database", "~/somewhere/data.pkl")
+		_ = run(holder, "database", "~/somewhere/data.json")
 	finally:
 		if previous is None:
 			del os.environ["HOME"]
 		else:
 			os.environ["HOME"] = previous
 
-	assert written(settings)["database"] == {"file": "~/somewhere/data.pkl"}
+	assert written(settings)["database"] == {"file": "~/somewhere/data.json"}
 
 
 def test_a_file_already_there_is_kept_rather_than_overwritten(tmp_path: Path):
@@ -112,13 +112,13 @@ def test_a_file_already_there_is_kept_rather_than_overwritten(tmp_path: Path):
 
 	_ = (home / "settings.toml").write_text("[display]\n", encoding="utf-8")
 
-	mine = home / "todos.pkl"
+	mine = home / "todos.json"
 	_ = mine.write_bytes(b"mine")
 
 	sync = tmp_path / "sync"
 	sync.mkdir()
 
-	theirs = sync / "todos.pkl"
+	theirs = sync / "todos.json"
 	_ = theirs.write_bytes(b"already syncing")
 
 	shown = run(holder, "todos", str(theirs))
@@ -177,7 +177,7 @@ def test_moving_somewhere_it_already_is_changes_nothing(tmp_path: Path):
 
 	_ = (home / "settings.toml").write_text("[display]\n", encoding="utf-8")
 
-	shown = run(holder, "todos", str(home / "todos.pkl"))
+	shown = run(holder, "todos", str(home / "todos.json"))
 
 	assert "already at" in shown
 	assert "todos" not in written(home / "settings.toml")

@@ -164,7 +164,7 @@ def _repoint(context: Context, target: Target, wanted: str, destination: Path) -
 
 def _relocate(context: Context, target: Target, wanted: str) -> int:
 	current = target.where(context.settings)
-	destination = paths.resolve(wanted)
+	destination = paths.as_json(paths.resolve(wanted))
 
 	if destination.is_dir() or wanted.endswith(("/", os.sep)):
 		destination = destination / current.name

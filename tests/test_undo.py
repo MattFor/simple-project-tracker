@@ -8,10 +8,11 @@ from tracker.cli.commands import command_undo
 from tracker.cli.entries import Context, marks_used
 from tracker.core.storage import load_data, save_data
 from tracker.core.undo import backup_path, differences, restore
+from tracker.util.files import read_json
 
 
 def isolate(tmp_path: Path) -> None:
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 	os.environ["TRACKER_VIEW"] = str(tmp_path / "view.json")
 
 
@@ -26,6 +27,7 @@ def test_the_first_change_can_be_taken_back(tmp_path: Path):
 	projects["/home/user/code/alpha"]["status"] = "archived"
 
 	assert save_data(projects, settings, undoable=True)
+	assert read_json(backup_path(settings))[0]["/home/user/code/alpha"]["status"] == "current"
 
 	swapped = restore(settings)
 
@@ -98,7 +100,7 @@ def test_a_damaged_backup_is_refused(tmp_path: Path):
 	settings = make_settings()
 
 	_ = save_data(make_projects(*SAMPLE), settings, undoable=True)
-	_ = backup_path(settings).write_bytes(b"this is not a pickle")
+	_ = backup_path(settings).write_bytes(b"this is not JSON")
 
 	assert restore(settings) is None
 	assert len(load_data(settings)) == len(SAMPLE)

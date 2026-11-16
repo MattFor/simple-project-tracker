@@ -140,7 +140,7 @@ When a partial name matches several projects, it's settled by
 The database can live in a Syncthing, Dropbox or git folder.
 
 ```sh
-t mv db ~/syncthing/data.pkl   # put the database where it syncs
+t mv db ~/syncthing/data.json    # put the database where it syncs
 t doctor                         # what is wrong with it
 t fix                            # put that right, undoable
 ```

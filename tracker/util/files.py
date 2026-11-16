@@ -50,12 +50,20 @@ def save_json(path: Path, data: dict[str, Any]) -> bool:
 	return atomic_write(path, payload)
 
 
-def load_json(path: Path) -> dict[str, Any] | None:
+def read_json(path: Path) -> tuple[Any, str | None]:
 	try:
 		with open(path, encoding="utf-8") as f:
-			data: Any = json.load(f)
-	except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-		return None
+			return json.load(f), None
+
+	except FileNotFoundError:
+		return None, None
+
+	except (OSError, ValueError, RecursionError) as error:
+		return None, f"{type(error).__name__}: {error}"
+
+
+def load_json(path: Path) -> dict[str, Any] | None:
+	data, _ = read_json(path)
 
 	if not isinstance(data, dict):
 		return None
@@ -91,26 +99,32 @@ def load_toml(path: Path) -> dict[str, Any] | None:
 
 
 #
-# Pickle
+# Pickle, only to migrate the databases written before JSON
 #
 
+# Plain data types only, none that can run code as it is rebuilt
+SAFE_GLOBALS = frozenset(
+	{
+		("builtins", "set"),
+		("builtins", "frozenset"),
+		("datetime", "datetime"),
+		("datetime", "date"),
+	}
+)
 
-def save_pkl(path: Path, data: Any) -> bool:
-	try:
-		payload = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
-	except (pickle.PicklingError, TypeError, RecursionError):
-		return False
 
-	return atomic_write(path, payload)
+class SafeUnpickler(pickle.Unpickler):
+	def find_class(self, module: str, name: str) -> Any:
+		if (module, name) not in SAFE_GLOBALS:
+			raise pickle.UnpicklingError(f"refused {module}.{name}")
+
+		return super().find_class(module, name)
 
 
-def load_pkl(path: Path) -> tuple[Any, str | None]:
+def load_legacy_pkl(path: Path) -> tuple[Any, str | None]:
 	try:
 		with open(path, "rb") as f:
-			return pickle.load(f), None
-
-	except FileNotFoundError:
-		return None, None
+			return SafeUnpickler(f).load(), None
 
 	except Exception as error:
 		return None, f"{type(error).__name__}: {error}"

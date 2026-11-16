@@ -11,7 +11,7 @@ from tracker.core.models import Projects, new_project
 
 
 def context(tmp_path: Path, data: Projects, **overrides: object) -> Context:
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 	os.environ["TRACKER_ROOTS"] = str(tmp_path / "roots.toml")
 
 	return Context(settings=make_settings(**overrides), data=data, assume_yes=True)

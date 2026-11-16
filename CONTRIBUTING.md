@@ -18,7 +18,7 @@ pip install ruff basedpyright pytest
 ```
 
 Run it straight from the checkout with `python main.py <command>`, which keeps the
-database and the settings inside the checkout (`data.pkl` and `my_settings.toml`).
+database and the settings inside the checkout (`data.json` and `my_settings.toml`).
 
 ## Before opening a pull request
 

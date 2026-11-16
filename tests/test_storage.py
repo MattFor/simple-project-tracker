@@ -1,11 +1,14 @@
+import json
 import os
+import pickle
 from pathlib import Path
 from typing import Any
 
 from tests.helpers import SAMPLE, make_projects, make_settings
 from tracker.core.discovery import find_projects, get_last_touched_date
-from tracker.core.storage import load_data, save_data
-from tracker.util.files import load_pkl, save_pkl
+from tracker.core.storage import data_path, load_data, save_data
+from tracker.core.undo import restore
+from tracker.util.files import load_legacy_pkl, read_json, save_json
 
 
 def with_data_file(path: Path):
@@ -13,7 +16,7 @@ def with_data_file(path: Path):
 
 
 def test_save_and_load_round_trip(tmp_path: Path):
-	with_data_file(tmp_path / "data.pkl")
+	with_data_file(tmp_path / "data.json")
 
 	projects = make_projects(*SAMPLE)
 
@@ -23,10 +26,11 @@ def test_save_and_load_round_trip(tmp_path: Path):
 
 	assert set(loaded) == set(projects)
 	assert loaded["/home/user/code/alpha"]["status"] == "current"
+	assert json.loads((tmp_path / "data.json").read_text(encoding="utf-8")) == projects
 
 
 def test_temporary_ids_are_never_written(tmp_path: Path):
-	with_data_file(tmp_path / "data.pkl")
+	with_data_file(tmp_path / "data.json")
 
 	projects = make_projects(*SAMPLE)
 
@@ -35,34 +39,85 @@ def test_temporary_ids_are_never_written(tmp_path: Path):
 
 	_ = save_data(projects, make_settings())
 
-	stored, _ = load_pkl(tmp_path / "data.pkl")
+	stored, _ = read_json(tmp_path / "data.json")
 
 	assert "tid" not in stored["/home/user/code/alpha"]
 
 
 def test_a_missing_database_is_simply_empty(tmp_path: Path):
-	with_data_file(tmp_path / "absent.pkl")
+	with_data_file(tmp_path / "absent.json")
 
 	assert load_data(make_settings()) == {}
 
 
 def test_a_broken_database_is_moved_aside(tmp_path: Path):
-	path = tmp_path / "data.pkl"
-	_ = path.write_bytes(b"this is not a pickle")
+	path = tmp_path / "data.json"
+	_ = path.write_bytes(b"this is not JSON")
 
 	with_data_file(path)
 
 	assert load_data(make_settings()) == {}
 	assert not path.exists()
-	assert list(tmp_path.glob("data.pkl.corrupt-*"))
+	assert list(tmp_path.glob("data.json.corrupt-*"))
 
 
 def test_writes_are_atomic(tmp_path: Path):
-	path = tmp_path / "data.pkl"
+	path = tmp_path / "data.json"
 
-	_ = save_pkl(path, {"a": 1})
+	_ = save_json(path, {"a": 1})
 
-	assert [entry.name for entry in tmp_path.iterdir()] == ["data.pkl"]
+	assert [entry.name for entry in tmp_path.iterdir()] == ["data.json"]
+
+
+def test_an_old_pickle_database_moves_to_json_once(tmp_path: Path):
+	projects = make_projects(*SAMPLE)
+	before = make_projects(*SAMPLE[:1])
+
+	_ = (tmp_path / "data.pkl").write_bytes(pickle.dumps(projects))
+	_ = (tmp_path / "data.pkl.undo").write_bytes(pickle.dumps(before))
+
+	# Settings written before JSON still name the .pkl
+	with_data_file(tmp_path / "data.pkl")
+	settings = make_settings()
+
+	assert data_path(settings) == tmp_path / "data.json"
+	assert load_data(settings) == projects
+
+	assert read_json(tmp_path / "data.json") == (projects, None)
+	assert read_json(tmp_path / "data.json.undo") == (before, None)
+	assert sorted(entry.name for entry in tmp_path.glob("*.pkl*")) == ["data.pkl.migrated", "data.pkl.undo.migrated"]
+
+	# A pickle that turns up later is never read
+	_ = (tmp_path / "data.pkl").write_bytes(b"not read")
+	assert load_data(settings) == projects
+
+	swapped = restore(settings)
+
+	assert swapped is not None
+	assert set(swapped[1]) == set(before)
+
+
+def test_a_malicious_pickle_is_refused_without_running(tmp_path: Path):
+	marker = tmp_path / "ran"
+
+	class Exploit:
+		def __reduce__(self) -> tuple[Any, ...]:
+			return os.system, (f"touch {marker}",)  # pyright: ignore[reportDeprecated]
+
+	legacy = tmp_path / "data.pkl"
+	_ = legacy.write_bytes(pickle.dumps({"/x": Exploit()}))
+
+	data, error = load_legacy_pkl(legacy)
+
+	assert data is None
+	assert error is not None and "refused" in error
+
+	with_data_file(tmp_path / "data.json")
+
+	assert load_data(make_settings()) == {}
+	assert not marker.exists()
+	assert legacy.is_file()
+	assert not (tmp_path / "data.json").exists()
 
 
 def build_tree(root: Path) -> None:

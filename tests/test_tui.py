@@ -129,7 +129,7 @@ def test_pick_todos_narrows_by_status_and_search_and_follows_the_sort():
 
 
 def test_a_todo_named_after_a_project_shows_that_project_under_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-	monkeypatch.setenv("TRACKER_TODOS", str(tmp_path / "todos.pkl"))
+	monkeypatch.setenv("TRACKER_TODOS", str(tmp_path / "todos.json"))
 	projects = make_projects(*SAMPLE)
 	mentions.use(projects)
 	browser = Browser(projects, make_settings())
@@ -186,8 +186,8 @@ def press(browser: Browser, *keys: str | int) -> None:
 
 
 def test_the_browser_adds_edits_links_and_removes_todos(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-	monkeypatch.setenv("TRACKER_TODOS", str(tmp_path / "todos.pkl"))
-	monkeypatch.setenv("TRACKER_DATA", str(tmp_path / "data.pkl"))
+	monkeypatch.setenv("TRACKER_TODOS", str(tmp_path / "todos.json"))
+	monkeypatch.setenv("TRACKER_DATA", str(tmp_path / "data.json"))
 	settings = make_settings()
 	assert save_data(make_projects(*SAMPLE), settings)
 	projects = load_data(settings)

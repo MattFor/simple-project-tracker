@@ -237,7 +237,7 @@ branches = "current"
 
 [todos]
 # TRACKER_TODOS overrides this.
-database = "todos.pkl"
+database = "todos.json"
 
 # The status a new todo is given.
 new_status = "todo"
@@ -285,7 +285,7 @@ newest_first = false
 [database]
 # Relative paths are resolved against the project directory.
 # TRACKER_DATA overrides this.
-file = "data.pkl"
+file = "data.json"
 
 
 [sync]

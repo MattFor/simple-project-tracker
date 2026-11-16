@@ -169,14 +169,14 @@ def defaults() -> dict[str, Any]:
 		},
 		"todos": {
 			"display": {},
-			"database": "todos.pkl",
+			"database": "todos.json",
 			"new_status": "todo",
 			"done_status": "done",
 			"sort": "id",
 			"newest_first": False,
 		},
 		"database": {
-			"file": "data.pkl",
+			"file": "data.json",
 		},
 		"sync": {
 			"portable_paths": True,

@@ -11,6 +11,16 @@ todos.pkl
 todos.pkl.undo
 todos.pkl.corrupt-*
 
+*.pkl.migrated
+
+data.json
+data.json.undo
+data.json.corrupt-*
+
+todos.json
+todos.json.undo
+todos.json.corrupt-*
+
 __pycache__
 *.py[cod]
 

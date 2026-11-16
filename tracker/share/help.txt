@@ -223,10 +223,10 @@
 
       {GRAY}Examples:{RESET}
          {GREEN}tracker move{RESET}                                {GRAY}where all three live{RESET}
-         {GREEN}tracker move todos ~/synchronised-folder/todos.pkl{RESET}
+         {GREEN}tracker move todos ~/synchronised-folder/todos.json{RESET}
          {GREEN}tracker move todos ~/synchronised-folder{RESET}             {GRAY}a directory keeps the name{RESET}
          {GREEN}tracker move settings ~/synchronised-folder/tracker{RESET}
-         {GREEN}tracker move database /media/usb/data.pkl{RESET}
+         {GREEN}tracker move database /media/usb/data.json{RESET}
          {GREEN}t mvt ~/synchronised-folder{RESET}                          {GRAY}also: {GREEN}t mvs{GRAY}, {GREEN}t mvd{RESET}
 
       {GRAY}What may be moved: {GREEN}settings{GRAY} ({GREEN}config{GRAY}), {GREEN}database{GRAY} ({GREEN}data{GRAY}, {GREEN}projects{GRAY}) and{RESET}
@@ -253,7 +253,7 @@
       {GRAY}Looking at projects is not a change, and neither is a scan by the daemon,{RESET}
       {GRAY}so neither of them can lose an undo. Undoing twice puts things back.{RESET}
 
-      {GRAY}The database as it was is kept beside it, as {GREEN}data.pkl.undo{GRAY}.{RESET}
+      {GRAY}The database as it was is kept beside it, as {GREEN}data.json.undo{GRAY}.{RESET}
 
    {YELLOW}doctor{RESET}, {GRAY}doc, health, healthcheck, hc{RESET}
       Look the database over and report what is wrong with it.
@@ -530,7 +530,7 @@
    {GRAY}todos about it, and {GREEN}t td check <todo>{GRAY} lists the projects it names.{RESET}
 
    {GRAY}Configuration:{RESET}
-      {GREEN}todos.database{RESET}      where the list is kept, todos.pkl by default
+      {GREEN}todos.database{RESET}      where the list is kept, todos.json by default
       {GREEN}todos.new_status{RESET}    the status a new todo gets, and what reopen sets
       {GREEN}todos.done_status{RESET}   the status done sets, and what clear removes
       {GREEN}todos.sort{RESET}          id, name, status, created, updated
@@ -654,8 +654,8 @@
 
    {GRAY}Files:{RESET}
       {GREEN}~/.config/tracker/settings.toml{RESET}      configuration
-      {GREEN}~/.local/share/tracker/data.pkl{RESET}      database
-      {GREEN}~/.local/share/tracker/todos.pkl{RESET}     todo list
+      {GREEN}~/.local/share/tracker/data.json{RESET}     database
+      {GREEN}~/.local/share/tracker/todos.json{RESET}    todo list
       {GREEN}~/.local/state/tracker/view.json{RESET}     the numbering of the last listing
       {GREEN}~/.local/state/tracker/{RESET}              daemon pid and log
 
@@ -707,7 +707,7 @@
 {BOLD}Sync:{RESET}
    {GRAY}The database can live in a Syncthing, Dropbox or git folder.{RESET}
 
-      {GREEN}tracker move db ~/syncthing/data.pkl{RESET}
+      {GREEN}tracker move db ~/syncthing/data.json{RESET}
 
    {GRAY}Every path is stored portable and expanded as it is read. Home{RESET}
    {GRAY}needs no configuration and travels as {GREEN}~{GRAY}. Anything outside it is named:{RESET}

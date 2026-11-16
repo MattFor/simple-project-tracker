@@ -6,7 +6,7 @@ from tracker.core import portable
 from tracker.core.discovery import find_projects
 from tracker.core.models import new_project
 from tracker.core.storage import load_data, save_data
-from tracker.util.files import load_pkl, save_pkl
+from tracker.util.files import read_json, save_json
 
 
 def with_roots(path: Path, **named: str) -> None:
@@ -79,14 +79,14 @@ def test_the_environment_names_a_root_of_its_own(tmp_path: Path):
 def test_the_database_is_written_portable_and_read_back_local(tmp_path: Path):
 	only_home(tmp_path)
 
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 	settings = make_settings()
 	here = str(Path.home() / "code" / "alpha")
 
 	assert save_data({here: new_project(here, status="dev", project_id=1)}, settings)
 
-	stored, _ = load_pkl(tmp_path / "data.pkl")
+	stored, _ = read_json(tmp_path / "data.json")
 
 	assert list(stored) == ["~/code/alpha"]
 	assert stored["~/code/alpha"]["path"] == "~/code/alpha"
@@ -97,7 +97,7 @@ def test_the_database_is_written_portable_and_read_back_local(tmp_path: Path):
 def test_saving_leaves_the_projects_in_memory_alone(tmp_path: Path):
 	only_home(tmp_path)
 
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 	here = str(Path.home() / "code" / "alpha")
 	data = {here: new_project(here, status="dev", project_id=1)}
@@ -111,14 +111,14 @@ def test_saving_leaves_the_projects_in_memory_alone(tmp_path: Path):
 def test_turning_it_off_stores_the_absolute_path(tmp_path: Path):
 	only_home(tmp_path)
 
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 	settings = make_settings(sync__portable_paths=False)
 	here = str(Path.home() / "code" / "alpha")
 
 	assert save_data({here: new_project(here, status="dev", project_id=1)}, settings)
 
-	stored, _ = load_pkl(tmp_path / "data.pkl")
+	stored, _ = read_json(tmp_path / "data.json")
 
 	assert list(stored) == [here]
 
@@ -128,11 +128,11 @@ def test_a_database_written_elsewhere_lands_where_this_machine_keeps_it(
 ):
 	with_roots(tmp_path / "roots.toml", work=str(tmp_path / "here"))
 
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 	written = {"@work/alpha": new_project("@work/alpha", status="dev", note="shared note", project_id=4)}
 
-	assert save_pkl(tmp_path / "data.pkl", written)
+	assert save_json(tmp_path / "data.json", written)
 
 	loaded = load_data(make_settings())
 
@@ -151,7 +151,7 @@ def test_the_other_machine_scans_without_tracking_it_all_a_second_time(
 
 	with_roots(tmp_path / "roots.toml", work=str(here))
 
-	os.environ["TRACKER_DATA"] = str(tmp_path / "data.pkl")
+	os.environ["TRACKER_DATA"] = str(tmp_path / "data.json")
 
 	written = {
 		"@work/alpha": new_project(
@@ -163,7 +163,7 @@ def test_the_other_machine_scans_without_tracking_it_all_a_second_time(
 		)
 	}
 
-	assert save_pkl(tmp_path / "data.pkl", written)
+	assert save_json(tmp_path / "data.json", written)
 
 	settings = make_settings()
 	data = load_data(settings)
@@ -179,6 +179,6 @@ def test_the_other_machine_scans_without_tracking_it_all_a_second_time(
 
 	assert save_data(data, settings)
 
-	stored, _ = load_pkl(tmp_path / "data.pkl")
+	stored, _ = read_json(tmp_path / "data.json")
 
 	assert list(stored) == ["@work/alpha"]
